@@ -23,6 +23,7 @@ BLE_EPD_SVC = "62750001-d828-918d-fb46-b6c11c675aec"
 BLE_EPD_CHAR = "62750002-d828-918d-fb46-b6c11c675aec"
 
 CMD_INIT = 0x01
+CMD_CLEAR = 0x02
 CMD_REFRESH = 0x05
 CMD_SLEEP = 0x06
 CMD_WRITE_IMG = 0x30
@@ -118,6 +119,31 @@ async def probe(device: str, model_id: int, mtu: int, scan_timeout: float) -> No
             print(f"[probe] device: {msg}")
 
 
+async def test_screen(
+    device: str,
+    model_id: int,
+    mtu: int,
+    scan_timeout: float,
+) -> None:
+    """Minimal firmware path check: INIT + CLEAR(with refresh). The screen
+    should flash to white and the REFRESH inside CLEAR should block a few
+    seconds (busy wait), proving the EPD driver is bound and commands work."""
+    from bleak import BleakClient
+
+    address = await _resolve_device(device, scan_timeout)
+    notifier = _Notifier()
+    async with BleakClient(address, timeout=30) as client:
+        await _request_mtu(client, mtu)
+        await client.start_notify(BLE_EPD_CHAR, notifier)
+        t0 = time.monotonic()
+        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_INIT, model_id & 0xFF]), response=True)
+        print(f"[test] INIT done in {time.monotonic() - t0:.2f}s")
+        t1 = time.monotonic()
+        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_CLEAR]), response=True)
+        print(f"[test] CLEAR (full refresh) done in {time.monotonic() - t1:.2f}s")
+        print(f"[test] mtu reported: {notifier.mtu}")
+
+
 async def push_display(
     planes: tuple[bytes, bytes],
     model_id: int,
@@ -140,10 +166,12 @@ async def push_display(
 
         # INIT first (w/ response) so the firmware binds the EPD driver and
         # reports the authoritative max_data_len in the 'mtu=' notification.
+        t0 = time.monotonic()
         await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_INIT, model_id & 0xFF]), response=True)
         deadline = time.monotonic() + 2.0
         while time.monotonic() < deadline and notifier.mtu is None:
             await asyncio.sleep(0.05)
+        print(f"[ble] INIT + mtu wait: {time.monotonic() - t0:.2f}s")
 
         negotiated = getattr(client, "mtu_size", 0) or 23
         max_data_len = notifier.mtu or (negotiated - 3)
@@ -187,8 +215,9 @@ async def push_display(
                 if pacing_ms:
                     await asyncio.sleep(pacing_ms / 1000.0)
 
+        t1 = time.monotonic()
         await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_REFRESH]), response=True)
-        print("[ble] refresh sent (w/ response)")
+        print(f"[ble] refresh done in {time.monotonic() - t1:.2f}s (w/ response)")
         if sleep_after_push:
             await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_SLEEP]), response=True)
             print("[ble] display sleeping")

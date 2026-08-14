@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 from cux_api import build_usage_url, fetch_usage, parse_usage, read_auth, sample_balance, UsageFetchError
-from cux_ble import BlePushError, probe, push_display
+from cux_ble import BlePushError, probe, push_display, test_screen
 from cux_config import expand_user, load_config
 from cux_render import image_to_planes, planes_to_rgb, render_dashboard, resolve_font_path
 
@@ -36,6 +36,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     g.add_argument("--selftest", action="store_true", help="render sample data, no network/device")
     g.add_argument("--dry-run", action="store_true", help="fetch + render preview.png, no BLE")
     g.add_argument("--probe", action="store_true", help="connect + INIT, print device config/mtu, no image")
+    g.add_argument("--test-screen", action="store_true", help="INIT + CLEAR full refresh, check firmware path")
     g.add_argument("--once", action="store_true", help="fetch + render + push once")
     g.add_argument("--loop", action="store_true", help="push every N minutes forever")
     return p.parse_args(argv)
@@ -147,6 +148,17 @@ async def run_probe(cfg: dict) -> None:
     )
 
 
+async def run_test_screen(cfg: dict) -> None:
+    ble = cfg["ble"]
+    display = cfg["display"]
+    await test_screen(
+        device=ble["device"],
+        model_id=int(display["model_id"]),
+        mtu=int(ble.get("mtu", 247)),
+        scan_timeout=float(ble.get("scan_timeout", 10.0)),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
     cfg = load_config(args.config)
@@ -159,6 +171,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.probe:
         try:
             asyncio.run(run_probe(cfg))
+            return 0
+        except BlePushError as e:
+            print(f"[error] {e}", file=sys.stderr)
+            return 1
+
+    if args.test_screen:
+        try:
+            asyncio.run(run_test_screen(cfg))
             return 0
         except BlePushError as e:
             print(f"[error] {e}", file=sys.stderr)
