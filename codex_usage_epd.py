@@ -31,6 +31,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--config", default=None, help="path to YAML config (default: next to script)")
     p.add_argument("--debug", action="store_true", help="dump raw wham/usage JSON to usage_dump.json")
     p.add_argument("--font", default=None, help="override render.font")
+    p.add_argument("--sample", action="store_true", help="use synthetic sample data (no network)")
     g = p.add_mutually_exclusive_group()
     g.add_argument("--selftest", action="store_true", help="render sample data, no network/device")
     g.add_argument("--dry-run", action="store_true", help="fetch + render preview.png, no BLE")
@@ -164,8 +165,12 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     def do_once() -> int:
-        balance, _raw = load_balance(args, cfg)
-        print("[fetch] usage snapshot:")
+        if args.sample:
+            balance = sample_balance()
+            print("[fetch] using synthetic sample snapshot")
+        else:
+            balance, _raw = load_balance(args, cfg)
+            print("[fetch] usage snapshot:")
         print(balance.summary())
         font_path = resolve_font_path(args.font or cfg["render"].get("font", ""))
         planes = render(balance, cfg, font_path)
