@@ -26,7 +26,8 @@ codex-usage-epd/
 ├── config/
 │   └── codex_usage_epd.yaml  # repo checkout config
 ├── deploy/
-│   └── com.codex-usage-epd.plist  # launchd agent
+│   ├── com.codex-usage-epd.plist.in  # launchd agent template (__REPO__ placeholder)
+│   └── install.sh                    # renders the plist + bootstraps launchd
 ├── tmp/                      # --debug raw JSON dumps (gitignored)
 └── logs/                     # launchd stdout/stderr (gitignored)
 ```
@@ -91,18 +92,17 @@ your own with `--config /path/to/codex_usage_epd.yaml`.
 ## launchd (every 5 minutes)
 
 ```sh
-mkdir -p logs
-cp deploy/com.codex-usage-epd.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codex-usage-epd.plist
+./deploy/install.sh    # fills the __REPO__ placeholder with the checkout path
+                       # and bootstraps the agent (works for any username)
 ```
 
-Edit the `ProgramArguments` / `WorkingDirectory` paths in the plist first.
-
-Reload after editing the plist:
+This generates `~/Library/LaunchAgents/com.codex-usage-epd.plist` from
+`deploy/com.codex-usage-epd.plist.in`, so no manual path editing is needed.
+To remove the agent later:
 
 ```sh
 launchctl bootout gui/$(id -u)/com.codex-usage-epd
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codex-usage-epd.plist
+rm ~/Library/LaunchAgents/com.codex-usage-epd.plist
 ```
 
 ## Configuration

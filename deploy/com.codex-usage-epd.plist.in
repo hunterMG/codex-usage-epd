@@ -7,7 +7,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/jon/code/codex-usage-epd/.venv/bin/codex-usage-epd</string>
+    <string>__REPO__/.venv/bin/codex-usage-epd</string>
     <string>--once</string>
   </array>
 
@@ -18,13 +18,13 @@
   <true/>
 
   <key>WorkingDirectory</key>
-  <string>/Users/jon/code/codex-usage-epd</string>
+  <string>__REPO__</string>
 
   <key>StandardOutPath</key>
-  <string>/Users/jon/code/codex-usage-epd/logs/stdout.log</string>
+  <string>__REPO__/logs/stdout.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/jon/code/codex-usage-epd/logs/stderr.log</string>
+  <string>__REPO__/logs/stderr.log</string>
 
   <key>EnvironmentVariables</key>
   <dict>
