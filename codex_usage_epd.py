@@ -131,9 +131,11 @@ async def run_push(planes, cfg: dict) -> None:
         device=ble["device"],
         mtu=int(ble.get("mtu", 247)),
         scan_timeout=float(ble.get("scan_timeout", 10.0)),
-        interleave=int(ble.get("interleave", 4)),
-        sleep_after_push=bool(display.get("sleep_after_push", True)),
+        interleave=int(ble.get("interleave", 50)),
+        sleep_after_push=bool(display.get("sleep_after_push", False)),
         patch_wakeup_pin=bool(ble.get("patch_wakeup_pin", True)),
+        pacing_ms=float(ble.get("pacing_ms", 0.0)),
+        hold_after_refresh=float(ble.get("hold_after_refresh", 15.0)),
     )
 
 

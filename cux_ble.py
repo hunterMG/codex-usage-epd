@@ -74,7 +74,7 @@ class _Notifier:
 
     def __call__(self, _handle: int, data: bytearray) -> None:
         blob = bytes(data)
-        if self.config is None and len(blob) in (10, 11):
+        if self.config is None and len(blob) >= 11 and not blob.startswith((b"mtu=", b"t=")):
             self.config = blob
         m = _MTU_RE.search(blob)
         if m:
@@ -150,11 +150,20 @@ async def push_display(
     device: str,
     mtu: int = 247,
     scan_timeout: float = 10.0,
-    interleave: int = 4,
-    sleep_after_push: bool = True,
+    interleave: int = 50,
+    sleep_after_push: bool = False,
     patch_wakeup_pin: bool = True,
-    pacing_ms: float = 5.0,
+    pacing_ms: float = 0.0,
+    hold_after_refresh: float = 15.0,
 ) -> None:
+    """Mirror the proven-good web client sequence (html/js/main.js sendimg).
+
+    Order matters: INIT [0x01] (no model byte; firmware falls back to the
+    stored config.model_id) -> WRITE_IMG chunks (RLE, interleave write/response)
+    -> REFRESH -> stay connected while the panel finishes its busy refresh.
+    The web client never sends SLEEP and does not disconnect during refresh;
+    sending SLEEP or dropping the link mid-refresh aborts the image.
+    """
     from bleak import BleakClient
 
     address = await _resolve_device(device, scan_timeout)
@@ -164,14 +173,18 @@ async def push_display(
         await _request_mtu(client, mtu)
         await client.start_notify(BLE_EPD_CHAR, notifier)
 
-        # INIT first (w/ response) so the firmware binds the EPD driver and
-        # reports the authoritative max_data_len in the 'mtu=' notification.
+        # INIT without a model byte, exactly like the web client. The device
+        # replies with the epd config + "mtu=<n> rle=1" + "t=<unix>".
         t0 = time.monotonic()
-        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_INIT, model_id & 0xFF]), response=True)
+        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_INIT]), response=True)
         deadline = time.monotonic() + 2.0
         while time.monotonic() < deadline and notifier.mtu is None:
             await asyncio.sleep(0.05)
         print(f"[ble] INIT + mtu wait: {time.monotonic() - t0:.2f}s")
+        if notifier.config is not None:
+            print(f"[ble] epd config: {_config_bytes_to_str(notifier.config)}")
+        for msg in notifier.messages:
+            print(f"[ble] device: {msg}")
 
         negotiated = getattr(client, "mtu_size", 0) or 23
         max_data_len = notifier.mtu or (negotiated - 3)
@@ -188,9 +201,6 @@ async def push_display(
                 print("[ble] patching config wakeup_pin -> 0xFF")
                 await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_SET_CONFIG]) + bytes(patched), response=True)
                 await asyncio.sleep(0.1)
-
-        # re-INIT after any config patch (config write does not re-init the panel)
-        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_INIT, model_id & 0xFF]), response=True)
 
         for red_plane, plane_bytes in enumerate(planes):
             compressed = rle_chunks(plane_bytes, chunk_size)
@@ -215,9 +225,15 @@ async def push_display(
                 if pacing_ms:
                     await asyncio.sleep(pacing_ms / 1000.0)
 
-        t1 = time.monotonic()
-        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_REFRESH]), response=True)
-        print(f"[ble] refresh done in {time.monotonic() - t1:.2f}s (w/ response)")
+        # REFRESH without response: the firmware blocks in SSD16xx_WaitBusy
+        # while the panel refreshes, so a write-with-response would just sit
+        # waiting for an ATT ack the device only sends after the busy-wait
+        # finishes. Fire-and-forget, then hold the connection open long enough
+        # for the panel to finish; the firmware sleeps the panel on disconnect
+        # and would abort a mid-flight refresh.
+        await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_REFRESH]), response=False)
+        print(f"[ble] REFRESH sent (no-response), holding {hold_after_refresh}s for panel refresh...")
+        await asyncio.sleep(hold_after_refresh)
         if sleep_after_push:
             await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_SLEEP]), response=True)
             print("[ble] display sleeping")

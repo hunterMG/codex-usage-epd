@@ -2,14 +2,16 @@ display:
   width: 400
   height: 300
   model_id: 0x02        # SSD1683/SSD1619 400x300 B/W/R
-  sleep_after_push: true
+  sleep_after_push: false   # web client never sends SLEEP; early sleep aborts refresh
 
 ble:
   device: "auto"         # "auto" (scan NRF_EPD) | MAC address | name substring
   mtu: 247
   scan_timeout: 10
-  interleave: 4
+  interleave: 50         # match web client: 50 writes w/o response, then 1 with
   patch_wakeup_pin: true
+  pacing_ms: 0.0         # no pacing (web client sends back-to-back)
+  hold_after_refresh: 15.0  # stay connected until panel busy refresh completes
 
 codex:
   auth_file: "~/.codex/auth.json"

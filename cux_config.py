@@ -12,14 +12,16 @@ _DEFAULTS = {
         "width": 400,
         "height": 300,
         "model_id": 0x02,
-        "sleep_after_push": True,
+        "sleep_after_push": False,
     },
     "ble": {
         "device": "auto",
         "mtu": 247,
         "scan_timeout": 10.0,
-        "interleave": 4,
+        "interleave": 50,
         "patch_wakeup_pin": True,
+        "pacing_ms": 0.0,
+        "hold_after_refresh": 15.0,
     },
     "codex": {
         "auth_file": "~/.codex/auth.json",
