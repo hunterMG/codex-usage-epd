@@ -1,0 +1,4 @@
+bleak>=0.21
+Pillow>=10
+requests>=2.31
+pyyaml>=6

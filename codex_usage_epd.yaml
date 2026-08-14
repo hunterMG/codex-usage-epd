@@ -1,0 +1,24 @@
+display:
+  width: 400
+  height: 300
+  model_id: 0x02        # SSD1683/SSD1619 400x300 B/W/R
+  sleep_after_push: true
+
+ble:
+  device: "auto"         # "auto" (scan NRF_EPD) | MAC address | name substring
+  mtu: 247
+  scan_timeout: 10
+  interleave: 4
+  patch_wakeup_pin: true
+
+codex:
+  auth_file: "~/.codex/auth.json"
+  timeout: 15
+
+render:
+  font: ""               # empty = auto-detect; or path to a .ttf
+  warn_threshold: 20     # remaining % below this renders the bar red
+  preview: "preview.png"
+
+schedule:
+  interval_minutes: 5    # used by --loop / launchd
