@@ -52,19 +52,26 @@ async def _resolve_device(device: str, scan_timeout: float) -> str:
 
 
 async def _request_mtu(client, mtu: int) -> None:
+    # bleak 3.x dropped request_mtu on some backends (macOS/CB negotiates MTU
+    # automatically); call it only when the backend exposes it.
+    request_mtu = getattr(client, "request_mtu", None)
+    if request_mtu is None:
+        return
     try:
-        await client.request_mtu(mtu)
+        await request_mtu(mtu)
     except Exception as exc:  # macOS/CB may not support explicit MTU exchange
         print(f"[ble] request_mtu skipped: {exc}")
 
 
 class _Notifier:
+    """Synchronous notify callback (bleak 3.x callbacks are sync)."""
+
     def __init__(self) -> None:
         self.config: bytes | None = None
         self.mtu: int | None = None
         self.messages: list[str] = []
 
-    async def __call__(self, _handle: int, data: bytearray) -> None:
+    def __call__(self, _handle: int, data: bytearray) -> None:
         blob = bytes(data)
         if self.config is None and len(blob) in (10, 11):
             self.config = blob
