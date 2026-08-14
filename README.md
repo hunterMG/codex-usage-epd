@@ -11,16 +11,20 @@ web client).
 
 ```
 codex-usage-epd/
+├── pyproject.toml            # uv-managed project + AGPL-3.0 metadata
+├── uv.lock                   # pinned dependency lockfile (uv)
+├── LICENSE                   # GNU AGPL v3
 ├── codex_usage_epd/          # the Python package
-│   ├── cli.py                # entry point (python -m codex_usage_epd)
+│   ├── cli.py                # entry point (console script: codex-usage-epd)
 │   ├── api.py                # OAuth wham/usage fetch + parse
 │   ├── ble.py                # BLE connect/push (EPD-nRF5 protocol)
 │   ├── config.py             # YAML config loading
 │   ├── model.py              # usage data model
 │   ├── render.py             # PIL dashboard rendering -> bitplanes
-│   └── rle.py                # RLE + chunk encoding
+│   ├── rle.py                # RLE + chunk encoding
+│   └── data/                 # bundled default config shipped in the wheel
 ├── config/
-│   └── codex_usage_epd.yaml  # runtime configuration
+│   └── codex_usage_epd.yaml  # repo checkout config
 ├── deploy/
 │   └── com.codex-usage-epd.plist  # launchd agent
 ├── tmp/                      # --debug raw JSON dumps (gitignored)
@@ -44,25 +48,34 @@ codex-usage-epd/
 ## Setup
 
 ```sh
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m codex_usage_epd --selftest   # render preview.png, no net/BLE
-.venv/bin/python -m codex_usage_epd --dry-run    # live fetch + render preview.png
+uv sync                       # creates .venv, installs deps + the package (editable)
+uv run codex-usage-epd --selftest   # render preview.png, no net/BLE
+uv run codex-usage-epd --dry-run    # live fetch + render preview.png
 ```
 
 ## Usage
 
 ```sh
-.venv/bin/python -m codex_usage_epd --selftest   # sample data, verify encode/decode
-.venv/bin/python -m codex_usage_epd --dry-run    # fetch + render preview.png (no BLE)
-.venv/bin/python -m codex_usage_epd --probe      # connect + INIT, print device config/mtu
-.venv/bin/python -m codex_usage_epd --once       # fetch + render + push to display
-.venv/bin/python -m codex_usage_epd --loop       # push every N minutes forever
-.venv/bin/python -m codex_usage_epd --debug      # also dump raw wham/usage JSON to tmp/
+uv run codex-usage-epd --selftest   # sample data, verify encode/decode
+uv run codex-usage-epd --dry-run    # fetch + render preview.png (no BLE)
+uv run codex-usage-epd --probe      # connect + INIT, print device config/mtu
+uv run codex-usage-epd --once       # fetch + render + push to display
+uv run codex-usage-epd --loop       # push every N minutes forever
+uv run codex-usage-epd --debug      # also dump raw wham/usage JSON to tmp/
 ```
 
 `ble.device` accepts `auto` (scans for `NRF_EPD`), a MAC address, or a name
 substring.
+
+## Installing as a package
+
+```sh
+uv build                    # builds sdist + wheel into dist/
+uv pip install codex-usage-epd   # or from a wheel: uv pip install dist/*.whl
+```
+
+The wheel ships a bundled default config (`codex_usage_epd/data/`). Point it at
+your own with `--config /path/to/codex_usage_epd.yaml`.
 
 ## launchd (every 5 minutes)
 

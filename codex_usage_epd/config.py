@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 DEFAULT_CONFIG_NAME = "codex_usage_epd.yaml"
@@ -43,16 +42,29 @@ def load_config(path: str | None) -> dict:
 
     if path:
         cfg_path = Path(path)
+        if not cfg_path.exists():
+            raise FileNotFoundError(f"config not found: {cfg_path}")
     else:
-        # default: <repo root>/config/codex_usage_epd.yaml
-        cfg_path = Path(__file__).resolve().parent.parent / "config" / DEFAULT_CONFIG_NAME
-    merged = {}
-    if cfg_path.exists():
-        with cfg_path.open() as f:
-            user_cfg = yaml.safe_load(f) or {}
-    else:
-        user_cfg = {}
+        # 1) repo checkout layout: <repo root>/config/codex_usage_epd.yaml
+        repo_cfg = Path(__file__).resolve().parent.parent / "config" / DEFAULT_CONFIG_NAME
+        if repo_cfg.exists():
+            cfg_path = repo_cfg
+        else:
+            # 2) installed package: bundled default
+            import importlib.resources
 
+            res = importlib.resources.files("codex_usage_epd").joinpath(
+                "data", DEFAULT_CONFIG_NAME
+            )
+            user_cfg = yaml.safe_load(res.read_text(encoding="utf-8")) or {}
+            return _merge(user_cfg, f"<bundled>:{DEFAULT_CONFIG_NAME}")
+    with cfg_path.open() as f:
+        user_cfg = yaml.safe_load(f) or {}
+    return _merge(user_cfg, str(cfg_path))
+
+
+def _merge(user_cfg: dict, src: str) -> dict:
+    merged = {}
     for section, defaults in _DEFAULTS.items():
         merged[section] = dict(defaults)
         if isinstance(user_cfg.get(section), dict):
@@ -63,7 +75,7 @@ def load_config(path: str | None) -> dict:
         if key not in _DEFAULTS:
             merged[key] = user_cfg[key]
 
-    merged["_path"] = str(cfg_path)
+    merged["_path"] = src
     return merged
 
 

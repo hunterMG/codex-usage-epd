@@ -7,9 +7,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/jon/code/codex-usage-epd/.venv/bin/python</string>
-    <string>-m</string>
-    <string>codex_usage_epd</string>
+    <string>/Users/jon/code/codex-usage-epd/.venv/bin/codex-usage-epd</string>
     <string>--once</string>
   </array>
 
