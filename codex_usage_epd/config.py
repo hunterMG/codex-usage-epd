@@ -42,9 +42,12 @@ _DEFAULTS = {
 
 
 def _bundled_template_text() -> str:
+    repo = Path(__file__).resolve().parent.parent / "config" / TEMPLATE_NAME
+    if repo.exists():
+        return repo.read_text(encoding="utf-8")
     import importlib.resources
 
-    res = importlib.resources.files("codex_usage_epd").joinpath("data", TEMPLATE_NAME)
+    res = importlib.resources.files("codex_usage_epd").joinpath(TEMPLATE_NAME)
     return res.read_text(encoding="utf-8")
 
 

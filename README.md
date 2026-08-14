@@ -22,9 +22,9 @@ codex-usage-epd/
 │   ├── model.py              # usage data model
 │   ├── render.py             # PIL dashboard rendering -> bitplanes
 │   ├── rle.py                # RLE + chunk encoding
-│   └── data/                 # bundled config template shipped in the wheel
 ├── config/
-│   └── codex_usage_epd.yaml.example  # config template (generated config is gitignored)
+│   ├── codex_usage_epd.yaml.example  # config template (generated config is gitignored)
+│   └── codex_usage_epd.yaml          # generated config (gitignored)
 ├── deploy/
 │   ├── com.codex-usage-epd.plist.in  # launchd agent template (__REPO__ placeholder)
 │   └── install.sh                    # renders the plist + bootstraps launchd
@@ -93,7 +93,7 @@ uv build                              # builds sdist + wheel into dist/
 uv pip install dist/*.whl             # or: uv pip install --python <venv> dist/*.whl
 ```
 
-The wheel ships a config template (`codex_usage_epd/data/`). Run
+The config template lives at `config/codex_usage_epd.yaml.example`. Run
 `codex-usage-epd --init` to generate a real config (`~/.config/codex-usage-epd/`
 when installed, `config/` in a checkout), or point at your own with
 `--config /path/to/codex_usage_epd.yaml`.
