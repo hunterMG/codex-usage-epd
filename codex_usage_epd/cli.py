@@ -32,7 +32,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--debug", action="store_true", help="dump raw wham/usage JSON to tmp/usage_dump.json")
     p.add_argument("--font", default=None, help="override render.font")
     p.add_argument("--sample", action="store_true", help="use synthetic sample data (no network)")
+    p.add_argument("--force", action="store_true", help="with --init: overwrite an existing config")
     g = p.add_mutually_exclusive_group()
+    g.add_argument("--init", action="store_true", help="generate a config from the template (no network/device)")
     g.add_argument("--selftest", action="store_true", help="render sample data, no network/device")
     g.add_argument("--dry-run", action="store_true", help="fetch + render preview.png, no BLE")
     g.add_argument("--probe", action="store_true", help="connect + INIT, print device config/mtu, no image")
@@ -170,6 +172,18 @@ async def run_test_screen(cfg: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
+
+    if args.init:
+        try:
+            from .config import init_config
+
+            dest = init_config(args.config, force=args.force)
+        except FileExistsError as e:
+            print(f"[error] {e}", file=sys.stderr)
+            return 1
+        print(f"[init] wrote {dest}")
+        return 0
+
     cfg = load_config(args.config)
     print(f"[cfg] using {cfg['_path']}")
 

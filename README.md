@@ -22,9 +22,9 @@ codex-usage-epd/
 │   ├── model.py              # usage data model
 │   ├── render.py             # PIL dashboard rendering -> bitplanes
 │   ├── rle.py                # RLE + chunk encoding
-│   └── data/                 # bundled default config shipped in the wheel
+│   └── data/                 # bundled config template shipped in the wheel
 ├── config/
-│   └── codex_usage_epd.yaml  # repo checkout config
+│   └── codex_usage_epd.yaml.example  # config template (generated config is gitignored)
 ├── deploy/
 │   ├── com.codex-usage-epd.plist.in  # launchd agent template (__REPO__ placeholder)
 │   └── install.sh                    # renders the plist + bootstraps launchd
@@ -49,14 +49,17 @@ codex-usage-epd/
 ## Setup
 
 ```sh
-uv sync                       # creates .venv, installs deps + the package (editable)
-uv run codex-usage-epd --selftest   # render preview.png, no net/BLE
-uv run codex-usage-epd --dry-run    # live fetch + render preview.png
+uv sync                              # creates .venv, installs deps + the package (editable)
+uv run codex-usage-epd --init        # generate config/codex_usage_epd.yaml from the template
+# edit config/codex_usage_epd.yaml (set ble.device etc.)
+uv run codex-usage-epd --selftest    # render preview.png, no net/BLE
+uv run codex-usage-epd --dry-run     # live fetch + render preview.png
 ```
 
 ## Usage
 
 ```sh
+uv run codex-usage-epd --init          # generate a config from the template
 uv run codex-usage-epd --selftest      # sample data, verify encode/decode
 uv run codex-usage-epd --dry-run       # fetch + render preview.png (no BLE)
 uv run codex-usage-epd --probe         # connect + INIT, print device config/mtu
@@ -69,10 +72,14 @@ Modifiers (combine with the actions above):
 
 ```sh
 --config <path>    # use this YAML config instead of the default
+--force            # with --init: overwrite an existing config
 --font <path>      # override render.font
 --sample           # use synthetic sample data (no network)
 --debug            # also dump raw wham/usage JSON to tmp/usage_dump.json
 ```
+
+Config resolution when `--config` is not given: repo `config/codex_usage_epd.yaml`,
+then `~/.config/codex-usage-epd/codex_usage_epd.yaml`, then the bundled template.
 
 `ble.device` accepts `auto` (scans for `NRF_EPD`), a MAC address, or a name
 substring.
@@ -86,8 +93,10 @@ uv build                              # builds sdist + wheel into dist/
 uv pip install dist/*.whl             # or: uv pip install --python <venv> dist/*.whl
 ```
 
-The wheel ships a bundled default config (`codex_usage_epd/data/`). Point it at
-your own with `--config /path/to/codex_usage_epd.yaml`.
+The wheel ships a config template (`codex_usage_epd/data/`). Run
+`codex-usage-epd --init` to generate a real config (`~/.config/codex-usage-epd/`
+when installed, `config/` in a checkout), or point at your own with
+`--config /path/to/codex_usage_epd.yaml`.
 
 ## launchd (every 5 minutes)
 
@@ -107,7 +116,9 @@ rm ~/Library/LaunchAgents/com.codex-usage-epd.plist
 
 ## Configuration
 
-See `config/codex_usage_epd.yaml`. Notable keys:
+Generate a config with `codex-usage-epd --init`, then edit
+`config/codex_usage_epd.yaml` (or `~/.config/codex-usage-epd/` when installed).
+Notable keys:
 
 - `display.width` / `display.height` - panel pixels (`400`x`300`); `display.model_id` - EPD panel model id (`0x02` for SSD1619 400x300 BWR)
 - `display.sleep_after_push` - send the SLEEP command after pushing (default `false`; early sleep aborts the panel refresh)

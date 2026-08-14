@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 DEFAULT_CONFIG_NAME = "codex_usage_epd.yaml"
+TEMPLATE_NAME = "codex_usage_epd.yaml.example"
+
+USER_CONFIG_DIR = "~/.config/codex-usage-epd"
 
 _DEFAULTS = {
     "display": {
@@ -38,6 +41,38 @@ _DEFAULTS = {
 }
 
 
+def _bundled_template_text() -> str:
+    import importlib.resources
+
+    res = importlib.resources.files("codex_usage_epd").joinpath("data", TEMPLATE_NAME)
+    return res.read_text(encoding="utf-8")
+
+
+def init_config(path: str | None = None, force: bool = False) -> str:
+    """Generate a real config file from the bundled template.
+
+    Defaults to <repo root>/config/codex_usage_epd.yaml when the repo checkout
+    is present, otherwise to ~/.config/codex-usage-epd/codex_usage_epd.yaml.
+    Refuses to overwrite an existing file unless force=True.
+    Returns the path written.
+    """
+    dest = _default_config_path(path)
+    if dest.exists() and not force:
+        raise FileExistsError(f"config already exists: {dest} (use --force to overwrite)")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(_bundled_template_text())
+    return str(dest)
+
+
+def _default_config_path(path: str | None) -> Path:
+    if path:
+        return Path(path)
+    repo = Path(__file__).resolve().parent.parent / "config" / DEFAULT_CONFIG_NAME
+    if repo.parent.exists():
+        return repo
+    return Path(USER_CONFIG_DIR).expanduser() / DEFAULT_CONFIG_NAME
+
+
 def load_config(path: str | None) -> dict:
     import yaml
 
@@ -48,17 +83,15 @@ def load_config(path: str | None) -> dict:
     else:
         # 1) repo checkout layout: <repo root>/config/codex_usage_epd.yaml
         repo_cfg = Path(__file__).resolve().parent.parent / "config" / DEFAULT_CONFIG_NAME
+        # 2) installed package: ~/.config/codex-usage-epd/codex_usage_epd.yaml
+        user_cfg = Path(USER_CONFIG_DIR).expanduser() / DEFAULT_CONFIG_NAME
         if repo_cfg.exists():
             cfg_path = repo_cfg
+        elif user_cfg.exists():
+            cfg_path = user_cfg
         else:
-            # 2) installed package: bundled default
-            import importlib.resources
-
-            res = importlib.resources.files("codex_usage_epd").joinpath(
-                "data", DEFAULT_CONFIG_NAME
-            )
-            user_cfg = yaml.safe_load(res.read_text(encoding="utf-8")) or {}
-            return _merge(user_cfg, f"<bundled>:{DEFAULT_CONFIG_NAME}")
+            # 3) bundled template as the fallback default
+            return _merge(yaml.safe_load(_bundled_template_text()) or {}, f"<bundled>:{TEMPLATE_NAME}")
     with cfg_path.open() as f:
         user_cfg = yaml.safe_load(f) or {}
     return _merge(user_cfg, str(cfg_path))

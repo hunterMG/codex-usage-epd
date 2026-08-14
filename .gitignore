@@ -9,4 +9,5 @@ preview.png
 usage_dump.json
 tmp/
 logs/
+config/codex_usage_epd.yaml
 .DS_Store
