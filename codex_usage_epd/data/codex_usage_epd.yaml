@@ -7,7 +7,8 @@ display:
 ble:
   device: "auto"         # "auto" (scan NRF_EPD) | MAC address | name substring
   mtu: 247
-  scan_timeout: 10
+  scan_timeout: 10       # seconds per scan attempt
+  scan_retries: 3        # retry the scan before giving up (missed adv packets)
   interleave: 50         # match web client: 50 writes w/o response, then 1 with
   patch_wakeup_pin: true
   pacing_ms: 0.0         # no pacing (web client sends back-to-back)

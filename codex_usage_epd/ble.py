@@ -37,19 +37,36 @@ class BlePushError(Exception):
     pass
 
 
-async def _resolve_device(device: str, scan_timeout: float) -> str:
+async def _resolve_device(device: str, scan_timeout: float, scan_retries: int = 3) -> str:
     if device.lower() != "auto":
         return device  # caller passes a concrete address or name substring
     from bleak import BleakScanner
 
     print(f"[ble] scanning for '{DEFAULT_DEVICE_NAME}' ...")
-    devs = await BleakScanner.discover(timeout=scan_timeout)
-    for d in devs:
-        if d.name and DEFAULT_DEVICE_NAME in d.name:
-            print(f"[ble] found {d.name} @ {d.address}")
-            return d.address
-    names = [f"{d.name} {d.address}" for d in devs if d.name]
-    raise BlePushError(f"no '{DEFAULT_DEVICE_NAME}' device found. seen: {names}")
+    seen: dict[str, str] = {}
+    for attempt in range(1, max(1, scan_retries) + 1):
+        if attempt > 1:
+            print(f"[ble] scan attempt {attempt}/{scan_retries} ...")
+        target: asyncio.Future[tuple[str, str]] = asyncio.get_running_loop().create_future()
+
+        def _cb(device_, _adv):
+            if device_.name:
+                seen[device_.address] = device_.name
+            if device_.name and DEFAULT_DEVICE_NAME in device_.name and not target.done():
+                target.set_result((device_.name, device_.address))
+
+        try:
+            async with BleakScanner(detection_callback=_cb):
+                name, address = await asyncio.wait_for(target, timeout=scan_timeout)
+        except asyncio.TimeoutError:
+            continue
+        print(f"[ble] found {name} @ {address}")
+        return address
+
+    names = [f"{n} {a}" for a, n in seen.items()]
+    raise BlePushError(
+        f"no '{DEFAULT_DEVICE_NAME}' device found after {max(1, scan_retries)} scans. seen: {names}"
+    )
 
 
 async def _request_mtu(client, mtu: int) -> None:
@@ -90,11 +107,17 @@ def _config_bytes_to_str(cfg: bytes) -> str:
     return ", ".join(f"{names[i]}={cfg[i]:#04x}" for i in range(11))
 
 
-async def probe(device: str, model_id: int, mtu: int, scan_timeout: float) -> None:
+async def probe(
+    device: str,
+    model_id: int,
+    mtu: int,
+    scan_timeout: float,
+    scan_retries: int = 3,
+) -> None:
     """Connect, subscribe, INIT, and report what the device says."""
     from bleak import BleakClient
 
-    address = await _resolve_device(device, scan_timeout)
+    address = await _resolve_device(device, scan_timeout, scan_retries)
     notifier = _Notifier()
     async with BleakClient(address, timeout=30) as client:
         await _request_mtu(client, mtu)
@@ -124,13 +147,14 @@ async def test_screen(
     model_id: int,
     mtu: int,
     scan_timeout: float,
+    scan_retries: int = 3,
 ) -> None:
     """Minimal firmware path check: INIT + CLEAR(with refresh). The screen
     should flash to white and the REFRESH inside CLEAR should block a few
     seconds (busy wait), proving the EPD driver is bound and commands work."""
     from bleak import BleakClient
 
-    address = await _resolve_device(device, scan_timeout)
+    address = await _resolve_device(device, scan_timeout, scan_retries)
     notifier = _Notifier()
     async with BleakClient(address, timeout=30) as client:
         await _request_mtu(client, mtu)
@@ -150,6 +174,7 @@ async def push_display(
     device: str,
     mtu: int = 247,
     scan_timeout: float = 10.0,
+    scan_retries: int = 3,
     interleave: int = 50,
     sleep_after_push: bool = False,
     patch_wakeup_pin: bool = True,
@@ -166,7 +191,7 @@ async def push_display(
     """
     from bleak import BleakClient
 
-    address = await _resolve_device(device, scan_timeout)
+    address = await _resolve_device(device, scan_timeout, scan_retries)
     notifier = _Notifier()
 
     async with BleakClient(address, timeout=30) as client:

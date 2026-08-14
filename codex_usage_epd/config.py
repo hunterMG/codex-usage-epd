@@ -17,6 +17,7 @@ _DEFAULTS = {
         "device": "auto",
         "mtu": 247,
         "scan_timeout": 10.0,
+        "scan_retries": 3,
         "interleave": 50,
         "patch_wakeup_pin": True,
         "pacing_ms": 0.0,

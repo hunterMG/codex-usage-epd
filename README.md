@@ -112,6 +112,7 @@ See `config/codex_usage_epd.yaml`. Notable keys:
 - `display.width` / `display.height` - panel pixels (`400`x`300`); `display.model_id` - EPD panel model id (`0x02` for SSD1619 400x300 BWR)
 - `display.sleep_after_push` - send the SLEEP command after pushing (default `false`; early sleep aborts the panel refresh)
 - `ble.device` - `auto` | MAC address | name substring
+- `ble.scan_timeout` - seconds per scan attempt; `ble.scan_retries` - retry the scan before giving up (missed advertisements)
 - `ble.interleave` - writes per response-ack, mirrors the web client (`50`)
 - `ble.pacing_ms` - delay between writes (`0.0` = back-to-back)
 - `ble.hold_after_refresh` - seconds to stay connected so the panel refresh completes (`15`)

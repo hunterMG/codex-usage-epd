@@ -135,6 +135,7 @@ async def run_push(planes, cfg: dict) -> None:
         device=ble["device"],
         mtu=int(ble.get("mtu", 247)),
         scan_timeout=float(ble.get("scan_timeout", 10.0)),
+        scan_retries=int(ble.get("scan_retries", 3)),
         interleave=int(ble.get("interleave", 50)),
         sleep_after_push=bool(display.get("sleep_after_push", False)),
         patch_wakeup_pin=bool(ble.get("patch_wakeup_pin", True)),
@@ -151,6 +152,7 @@ async def run_probe(cfg: dict) -> None:
         model_id=int(display["model_id"]),
         mtu=int(ble.get("mtu", 247)),
         scan_timeout=float(ble.get("scan_timeout", 10.0)),
+        scan_retries=int(ble.get("scan_retries", 3)),
     )
 
 
@@ -162,6 +164,7 @@ async def run_test_screen(cfg: dict) -> None:
         model_id=int(display["model_id"]),
         mtu=int(ble.get("mtu", 247)),
         scan_timeout=float(ble.get("scan_timeout", 10.0)),
+        scan_retries=int(ble.get("scan_retries", 3)),
     )
 
 
