@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 from cux_api import build_usage_url, fetch_usage, parse_usage, read_auth, sample_balance, UsageFetchError
-from cux_ble import BlePushError, push_display
+from cux_ble import BlePushError, probe, push_display
 from cux_config import expand_user, load_config
 from cux_render import image_to_planes, planes_to_rgb, render_dashboard, resolve_font_path
 
@@ -34,6 +34,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     g = p.add_mutually_exclusive_group()
     g.add_argument("--selftest", action="store_true", help="render sample data, no network/device")
     g.add_argument("--dry-run", action="store_true", help="fetch + render preview.png, no BLE")
+    g.add_argument("--probe", action="store_true", help="connect + INIT, print device config/mtu, no image")
     g.add_argument("--once", action="store_true", help="fetch + render + push once")
     g.add_argument("--loop", action="store_true", help="push every N minutes forever")
     return p.parse_args(argv)
@@ -130,6 +131,18 @@ async def run_push(planes, cfg: dict) -> None:
         scan_timeout=float(ble.get("scan_timeout", 10.0)),
         interleave=int(ble.get("interleave", 4)),
         sleep_after_push=bool(display.get("sleep_after_push", True)),
+        patch_wakeup_pin=bool(ble.get("patch_wakeup_pin", True)),
+    )
+
+
+async def run_probe(cfg: dict) -> None:
+    ble = cfg["ble"]
+    display = cfg["display"]
+    await probe(
+        device=ble["device"],
+        model_id=int(display["model_id"]),
+        mtu=int(ble.get("mtu", 247)),
+        scan_timeout=float(ble.get("scan_timeout", 10.0)),
     )
 
 
@@ -141,6 +154,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.selftest:
         font_path = resolve_font_path(args.font or cfg["render"].get("font", ""))
         return run_selftest(cfg, font_path)
+
+    if args.probe:
+        try:
+            asyncio.run(run_probe(cfg))
+            return 0
+        except BlePushError as e:
+            print(f"[error] {e}", file=sys.stderr)
+            return 1
 
     def do_once() -> int:
         balance, _raw = load_balance(args, cfg)
@@ -172,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(interval)
         return 0
 
-    print("no action given (use --selftest / --dry-run / --once / --loop)", file=sys.stderr)
+    print("no action given (use --selftest / --probe / --dry-run / --once / --loop)", file=sys.stderr)
     return 2
 
 

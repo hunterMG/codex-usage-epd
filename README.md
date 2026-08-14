@@ -35,6 +35,7 @@ python3 -m venv .venv
 ```sh
 codex_usage_epd.py --selftest     # sample data, verify encode/decode
 codex_usage_epd.py --dry-run      # fetch + render preview.png (no BLE)
+codex_usage_epd.py --probe        # connect + INIT, print device config/mtu
 codex_usage_epd.py --once         # fetch + render + push to display
 codex_usage_epd.py --loop         # push every N minutes forever
 codex_usage_epd.py --debug        # also dump raw wham/usage JSON
