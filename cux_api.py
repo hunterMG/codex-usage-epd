@@ -91,7 +91,8 @@ def build_usage_url(home: Path) -> str:
     return base + path
 
 
-def fetch_usage(access_token: str, account_id: str | None, url: str, timeout: float = 15.0) -> dict:
+def fetch_usage(access_token: str, account_id: str | None, url: str, timeout: float = 15.0,
+                attempts: int = 3) -> dict:
     if requests is None:
         raise UsageFetchError("requests is required. Install with: pip install requests")
 
@@ -105,21 +106,30 @@ def fetch_usage(access_token: str, account_id: str | None, url: str, timeout: fl
     if account_id:
         headers["ChatGPT-Account-Id"] = account_id
 
-    try:
-        resp = requests.get(url, headers=headers, timeout=timeout)  # type: ignore[name-defined]
-    except Exception as e:  # network errors
-        raise UsageFetchError(f"network error: {e}") from e
+    last_err: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)  # type: ignore[name-defined]
+        except Exception as e:  # network / TLS errors -> retry with backoff
+            last_err = e
+            if attempt < attempts:
+                import time
 
-    if resp.status_code in (401, 403):
-        raise UsageFetchError(
-            f"HTTP {resp.status_code}: token expired/invalid. Run `codex` to re-authenticate."
-        )
-    if resp.status_code != 200:
-        raise UsageFetchError(f"HTTP {resp.status_code}: {resp.text[:200]}")
-    try:
-        return resp.json()
-    except ValueError as e:
-        raise UsageFetchError(f"invalid JSON response: {e}") from e
+                time.sleep(1.5 * attempt)
+                continue
+            raise UsageFetchError(f"network error: {e}") from e
+
+        if resp.status_code in (401, 403):
+            raise UsageFetchError(
+                f"HTTP {resp.status_code}: token expired/invalid. Run `codex` to re-authenticate."
+            )
+        if resp.status_code != 200:
+            raise UsageFetchError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+        try:
+            return resp.json()
+        except ValueError as e:
+            raise UsageFetchError(f"invalid JSON response: {e}") from e
+    raise UsageFetchError(f"network error: {last_err}")  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------
