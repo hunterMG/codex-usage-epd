@@ -8,7 +8,8 @@
   <key>ProgramArguments</key>
   <array>
     <string>/Users/jon/code/codex-usage-epd/.venv/bin/python</string>
-    <string>/Users/jon/code/codex-usage-epd/codex_usage_epd.py</string>
+    <string>-m</string>
+    <string>codex_usage_epd</string>
     <string>--once</string>
   </array>
 

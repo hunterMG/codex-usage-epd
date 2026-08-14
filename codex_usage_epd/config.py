@@ -41,7 +41,11 @@ _DEFAULTS = {
 def load_config(path: str | None) -> dict:
     import yaml
 
-    cfg_path = Path(path) if path else Path(__file__).parent / DEFAULT_CONFIG_NAME
+    if path:
+        cfg_path = Path(path)
+    else:
+        # default: <repo root>/config/codex_usage_epd.yaml
+        cfg_path = Path(__file__).resolve().parent.parent / "config" / DEFAULT_CONFIG_NAME
     merged = {}
     if cfg_path.exists():
         with cfg_path.open() as f:

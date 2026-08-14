@@ -13,7 +13,7 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
-from cux_model import Balance, Window
+from .model import Balance, Window
 
 # dashboard geometry (matches 4.2" 400x300 BWR panel)
 WIDTH = 400

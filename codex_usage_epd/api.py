@@ -18,7 +18,7 @@ try:
 except ImportError:  # pragma: no cover
     requests = None  # type: ignore[assignment]
 
-from cux_model import Balance, ModelUsage, Window
+from .model import Balance, ModelUsage, Window
 
 DEFAULT_CHATGPT_BASE = "https://chatgpt.com/backend-api/"
 USAGE_PATH = "/wham/usage"

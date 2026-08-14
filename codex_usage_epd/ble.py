@@ -17,7 +17,7 @@ import asyncio
 import re
 import time
 
-from cux_rle import raw_chunks, rle_chunks
+from .rle import raw_chunks, rle_chunks
 
 BLE_EPD_SVC = "62750001-d828-918d-fb46-b6c11c675aec"
 BLE_EPD_CHAR = "62750002-d828-918d-fb46-b6c11c675aec"

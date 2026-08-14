@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 preview.png
 usage_dump.json
+tmp/
+logs/
 .DS_Store

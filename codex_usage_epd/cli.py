@@ -20,16 +20,16 @@ import sys
 import time
 from pathlib import Path
 
-from cux_api import build_usage_url, fetch_usage, parse_usage, read_auth, sample_balance, UsageFetchError
-from cux_ble import BlePushError, probe, push_display, test_screen
-from cux_config import expand_user, load_config
-from cux_render import image_to_planes, planes_to_rgb, render_dashboard, resolve_font_path
+from .api import build_usage_url, fetch_usage, parse_usage, read_auth, sample_balance, UsageFetchError
+from .ble import BlePushError, probe, push_display, test_screen
+from .config import expand_user, load_config
+from .render import image_to_planes, planes_to_rgb, render_dashboard, resolve_font_path
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Codex usage -> e-paper display")
     p.add_argument("--config", default=None, help="path to YAML config (default: next to script)")
-    p.add_argument("--debug", action="store_true", help="dump raw wham/usage JSON to usage_dump.json")
+    p.add_argument("--debug", action="store_true", help="dump raw wham/usage JSON to tmp/usage_dump.json")
     p.add_argument("--font", default=None, help="override render.font")
     p.add_argument("--sample", action="store_true", help="use synthetic sample data (no network)")
     g = p.add_mutually_exclusive_group()
@@ -50,7 +50,11 @@ def load_balance(args: argparse.Namespace, cfg: dict) -> tuple:
     url = build_usage_url(Path(auth_file).parent)
     raw = fetch_usage(access_token, account_id, url, timeout=codex.get("timeout", 15.0))
     if args.debug:
-        Path("usage_dump.json").write_text(json.dumps(raw, indent=2))
+        dump_dir = Path(__file__).resolve().parent.parent / "tmp"
+        dump_dir.mkdir(exist_ok=True)
+        dump_path = dump_dir / "usage_dump.json"
+        dump_path.write_text(json.dumps(raw, indent=2))
+        print(f"[debug] raw wham/usage JSON -> {dump_path}")
     return parse_usage(raw), raw
 
 
@@ -86,7 +90,7 @@ def run_selftest(cfg: dict, font_path: str) -> int:
     print(f"[selftest] planes: bw={len(bw)}B red={len(red)}B")
 
     # RLE round-trip: compress -> decompress == original, chunks self-contained
-    from cux_rle import _rle_decompressed, rle_chunks
+    from .rle import _rle_decompressed, rle_chunks
 
     chunk_size = 242  # MTU 247 - 5
     for name, plane in (("bw", bw), ("red", red)):
