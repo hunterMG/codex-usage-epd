@@ -56,12 +56,21 @@ uv run codex-usage-epd --dry-run    # live fetch + render preview.png
 ## Usage
 
 ```sh
-uv run codex-usage-epd --selftest   # sample data, verify encode/decode
-uv run codex-usage-epd --dry-run    # fetch + render preview.png (no BLE)
-uv run codex-usage-epd --probe      # connect + INIT, print device config/mtu
-uv run codex-usage-epd --once       # fetch + render + push to display
-uv run codex-usage-epd --loop       # push every N minutes forever
-uv run codex-usage-epd --debug      # also dump raw wham/usage JSON to tmp/
+uv run codex-usage-epd --selftest      # sample data, verify encode/decode
+uv run codex-usage-epd --dry-run       # fetch + render preview.png (no BLE)
+uv run codex-usage-epd --probe         # connect + INIT, print device config/mtu
+uv run codex-usage-epd --test-screen   # INIT + CLEAR full refresh (firmware check)
+uv run codex-usage-epd --once          # fetch + render + push to display
+uv run codex-usage-epd --loop          # push every N minutes forever
+```
+
+Modifiers (combine with the actions above):
+
+```sh
+--config <path>    # use this YAML config instead of the default
+--font <path>      # override render.font
+--sample           # use synthetic sample data (no network)
+--debug            # also dump raw wham/usage JSON to tmp/usage_dump.json
 ```
 
 `ble.device` accepts `auto` (scans for `NRF_EPD`), a MAC address, or a name
@@ -69,9 +78,11 @@ substring.
 
 ## Installing as a package
 
+> Not published to PyPI yet. Install from the locally built wheel:
+
 ```sh
-uv build                    # builds sdist + wheel into dist/
-uv pip install codex-usage-epd   # or from a wheel: uv pip install dist/*.whl
+uv build                              # builds sdist + wheel into dist/
+uv pip install dist/*.whl             # or: uv pip install --python <venv> dist/*.whl
 ```
 
 The wheel ships a bundled default config (`codex_usage_epd/data/`). Point it at
@@ -82,24 +93,44 @@ your own with `--config /path/to/codex_usage_epd.yaml`.
 ```sh
 mkdir -p logs
 cp deploy/com.codex-usage-epd.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.codex-usage-epd.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codex-usage-epd.plist
 ```
 
 Edit the `ProgramArguments` / `WorkingDirectory` paths in the plist first.
+
+Reload after editing the plist:
+
+```sh
+launchctl bootout gui/$(id -u)/com.codex-usage-epd
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codex-usage-epd.plist
+```
 
 ## Configuration
 
 See `config/codex_usage_epd.yaml`. Notable keys:
 
+- `display.width` / `display.height` - panel pixels (`400`x`300`); `display.model_id` - EPD panel model id (`0x02` for SSD1619 400x300 BWR)
+- `display.sleep_after_push` - send the SLEEP command after pushing (default `false`; early sleep aborts the panel refresh)
+- `ble.device` - `auto` | MAC address | name substring
+- `ble.interleave` - writes per response-ack, mirrors the web client (`50`)
+- `ble.pacing_ms` - delay between writes (`0.0` = back-to-back)
+- `ble.hold_after_refresh` - seconds to stay connected so the panel refresh completes (`15`)
 - `codex.auth_file` - where the OAuth tokens live (default `~/.codex/auth.json`)
 - `codex` reads `chatgpt_base_url` from `~/.codex/config.toml` if set
 - `render.font` - `.ttf` path (auto-detected on macOS/Windows/Linux otherwise)
 - `render.warn_threshold` - remaining % that turns a bar red
-- `display.model_id` - EPD panel model id (`0x02` for SSD1619 400x300 BWR)
+- `render.preview` - filename for the rendered preview PNG
+- `schedule.interval_minutes` - interval used by `--loop` / launchd
 
 ## Notes
 
 - Tokens are read from `~/.codex/auth.json` and never logged or committed.
-- The display must be powered (USB). With `wakeup_pin=0xFF` it keeps
-  re-advertising after the timeout so the scheduled push can always connect.
-- This is a private prototype; remote: `git@github.com:hunterMG/codex-usage-epd.git`.
+- The display must be powered (USB). With `ble.patch_wakeup_pin: true` it forces
+  the device config byte to `0xFF` so the panel keeps re-advertising after the
+  timeout, letting the scheduled push always connect.
+
+## Development
+
+- Repository: `git@github.com:hunterMG/codex-usage-epd.git` (private)
+- License: GNU AGPL v3 — see `LICENSE`
+- Dependencies are managed by uv (`uv sync`, `uv.lock` committed)

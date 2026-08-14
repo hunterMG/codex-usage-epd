@@ -28,7 +28,7 @@ from .render import image_to_planes, planes_to_rgb, render_dashboard, resolve_fo
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Codex usage -> e-paper display")
-    p.add_argument("--config", default=None, help="path to YAML config (default: next to script)")
+    p.add_argument("--config", default=None, help="path to YAML config (default: repo config/ or bundled)")
     p.add_argument("--debug", action="store_true", help="dump raw wham/usage JSON to tmp/usage_dump.json")
     p.add_argument("--font", default=None, help="override render.font")
     p.add_argument("--sample", action="store_true", help="use synthetic sample data (no network)")
