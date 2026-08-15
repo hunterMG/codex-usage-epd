@@ -143,6 +143,7 @@ async def run_push(planes, cfg: dict) -> None:
         patch_wakeup_pin=bool(ble.get("patch_wakeup_pin", True)),
         pacing_ms=float(ble.get("pacing_ms", 0.0)),
         hold_after_refresh=float(ble.get("hold_after_refresh", 15.0)),
+        slot=ble.get("slot", 0),
     )
 
 

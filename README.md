@@ -127,6 +127,7 @@ Notable keys:
 - `ble.interleave` - writes per response-ack, mirrors the web client (`50`)
 - `ble.pacing_ms` - delay between writes (`0.0` = back-to-back)
 - `ble.hold_after_refresh` - seconds to stay connected so the panel refresh completes (`15`)
+- `ble.slot` - which image slot to write on the epdiy.cn slot firmware (`0..N-1`); `"auto"` picks the first free slot so an existing slot is never overwritten; `-1`/`"none"` disables the `SET_SLOT` command (plain EPD-nRF5 firmware)
 - `codex.auth_file` - where the OAuth tokens live (default `~/.codex/auth.json`)
 - `codex` reads `chatgpt_base_url` from `~/.codex/config.toml` if set
 - `render.font` - `.ttf` path (auto-detected on macOS/Windows/Linux otherwise)

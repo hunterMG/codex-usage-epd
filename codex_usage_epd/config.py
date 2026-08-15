@@ -25,6 +25,7 @@ _DEFAULTS = {
         "patch_wakeup_pin": True,
         "pacing_ms": 0.0,
         "hold_after_refresh": 15.0,
+        "slot": 0,
     },
     "codex": {
         "auth_file": "~/.codex/auth.json",

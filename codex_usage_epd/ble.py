@@ -9,6 +9,12 @@ Protocol (EPD-nRF5/EPD/EPD_service.c + html/js/main.js):
     chunk (begin), bit2=1 RLE-encoded payload
   - REFRESH 0x05, SLEEP 0x06 (w/ response)
   - chunk size = (max_data_len - 2); the device reports max_data_len = MTU - 3.
+
+Slot firmware (epdiy.cn web client) adds:
+  - SET_SLOT 0x31 [action, slot]  action=0 select write slot, action=1 display
+  - device announces "slots=<count> <usedMask> [selected]" (usedMask decimal)
+    after connecting; sending SET_SLOT [0, slot] before INIT routes WRITE_IMG
+    into that slot.
 """
 
 from __future__ import annotations
@@ -27,10 +33,12 @@ CMD_CLEAR = 0x02
 CMD_REFRESH = 0x05
 CMD_SLEEP = 0x06
 CMD_WRITE_IMG = 0x30
+CMD_SET_SLOT = 0x31
 CMD_SET_CONFIG = 0x90
 
 DEFAULT_DEVICE_NAME = "NRF_EPD"
 _MTU_RE = re.compile(rb"mtu=(\d+)")
+_SLOTS_RE = re.compile(rb"slots=(\d+)\s+(\d+|0x[0-9A-Fa-f]+)(?:\s+(-?\d+))?")
 
 
 class BlePushError(Exception):
@@ -88,15 +96,24 @@ class _Notifier:
         self.config: bytes | None = None
         self.mtu: int | None = None
         self.messages: list[str] = []
+        self.slots_count: int = 0
+        self.slots_used_mask: int = 0
+        self.slots_selected: int | None = None
 
     def __call__(self, _handle: int, data: bytearray) -> None:
         blob = bytes(data)
-        if self.config is None and len(blob) >= 11 and not blob.startswith((b"mtu=", b"t=")):
+        if self.config is None and len(blob) >= 11 and not blob.startswith((b"mtu=", b"t=", b"slots=")):
             self.config = blob
         m = _MTU_RE.search(blob)
         if m:
             self.mtu = int(m.group(1))
-        if blob.startswith((b"mtu=", b"t=")):
+        sm = _SLOTS_RE.search(blob)
+        if sm:
+            self.slots_count = int(sm.group(1))
+            mask = sm.group(2).decode(errors="replace")
+            self.slots_used_mask = int(mask, 16) if mask.lower().startswith("0x") else int(mask, 10)
+            self.slots_selected = int(sm.group(3)) if sm.group(3) else None
+        if blob.startswith((b"mtu=", b"t=", b"slots=")):
             self.messages.append(blob.decode(errors="replace"))
 
 
@@ -105,6 +122,45 @@ def _config_bytes_to_str(cfg: bytes) -> str:
         return cfg.hex()
     names = ["mosi", "sclk", "cs", "dc", "rst", "busy", "bs", "model", "wakeup", "led", "en"]
     return ", ".join(f"{names[i]}={cfg[i]:#04x}" for i in range(11))
+
+
+def _resolve_slot(slot_cfg, notifier: _Notifier) -> int | None:
+    """Map the configured ``slot`` to a concrete slot index to write into.
+
+    - ``None`` / ``"none"`` / ``-1`` -> no SET_SLOT command (raw behaviour)
+    - ``int >= 0``                   -> that exact slot
+    - ``"auto"``                     -> first free slot per the device's
+                                        usedMask; falls back to the currently
+                                        selected slot, then slot 0
+    Returns ``None`` (no slot command) when the device does not advertise
+    slot support and the caller asked for ``"auto"``.
+    """
+    if slot_cfg is None:
+        return None
+    if isinstance(slot_cfg, str):
+        s = slot_cfg.strip().lower()
+        if s in ("none", "off", "disabled"):
+            return None
+        if s == "auto":
+            count = notifier.slots_count or 0
+            if count <= 0:
+                return None
+            mask = notifier.slots_used_mask or 0
+            for i in range(count):
+                if not (mask >> i) & 1:
+                    return i
+            cur = notifier.slots_selected
+            return cur if cur is not None and 0 <= cur < count else 0
+        try:
+            slot_cfg = int(s)
+        except ValueError:
+            raise BlePushError(f"invalid ble.slot value: {slot_cfg!r}")
+    slot_idx = int(slot_cfg)
+    if slot_idx < 0:
+        return None
+    if notifier.slots_count and slot_idx >= notifier.slots_count:
+        print(f"[ble] warning: slot {slot_idx} >= device slot count {notifier.slots_count}")
+    return slot_idx
 
 
 async def probe(
@@ -180,6 +236,7 @@ async def push_display(
     patch_wakeup_pin: bool = True,
     pacing_ms: float = 0.0,
     hold_after_refresh: float = 15.0,
+    slot: int | str | None = None,
 ) -> None:
     """Mirror the proven-good web client sequence (html/js/main.js sendimg).
 
@@ -188,6 +245,10 @@ async def push_display(
     -> REFRESH -> stay connected while the panel finishes its busy refresh.
     The web client never sends SLEEP and does not disconnect during refresh;
     sending SLEEP or dropping the link mid-refresh aborts the image.
+
+    On slot firmware (epdiy.cn) a ``SET_SLOT [0, slot]`` is sent before INIT,
+    exactly like the web client, so WRITE_IMG lands in the chosen slot instead
+    of overwriting whatever slot the device currently has selected.
     """
     from bleak import BleakClient
 
@@ -197,6 +258,22 @@ async def push_display(
     async with BleakClient(address, timeout=30) as client:
         await _request_mtu(client, mtu)
         await client.start_notify(BLE_EPD_CHAR, notifier)
+
+        # "auto" needs the device's slot announcement before picking a free slot
+        if isinstance(slot, str) and slot.strip().lower() == "auto":
+            deadline = time.monotonic() + 2.0
+            while time.monotonic() < deadline and notifier.slots_count == 0:
+                await asyncio.sleep(0.05)
+        use_slot = _resolve_slot(slot, notifier)
+        if use_slot is not None:
+            occupied = bool(notifier.slots_count and (notifier.slots_used_mask >> use_slot) & 1)
+            print(
+                f"[ble] SET_SLOT write slot {use_slot}"
+                + (" (occupied, will overwrite)" if occupied else "")
+            )
+            await client.write_gatt_char(
+                BLE_EPD_CHAR, bytes([CMD_SET_SLOT, 0x00, use_slot & 0xFF]), response=True
+            )
 
         # INIT without a model byte, exactly like the web client. The device
         # replies with the epd config + "mtu=<n> rle=1" + "t=<unix>".
@@ -208,6 +285,11 @@ async def push_display(
         print(f"[ble] INIT + mtu wait: {time.monotonic() - t0:.2f}s")
         if notifier.config is not None:
             print(f"[ble] epd config: {_config_bytes_to_str(notifier.config)}")
+        if notifier.slots_count:
+            print(
+                f"[ble] device slots: count={notifier.slots_count} "
+                f"used=0x{notifier.slots_used_mask:x} selected={notifier.slots_selected}"
+            )
         for msg in notifier.messages:
             print(f"[ble] device: {msg}")
 
