@@ -40,6 +40,25 @@ codex-usage-epd/
 - Red alert bars when remaining % drops below `render.warn_threshold`
 - `--selftest` verifies RLE + bitplane round-trips without network/hardware
 
+## Rendering / colour notes
+
+The panel is **black / white / red only — there is no grey**. PIL draws the
+dashboard in RGB, then `render.image_to_planes` quantises each pixel:
+
+- luma `>= 140` → white, luma `< 140` → black (`BW_THRESHOLD`)
+- pure red (`r > 160` and `r > g`, `r > b`) → red
+
+Consequences for the layout:
+
+- **Light grey text is invisible.** A "grey" like `(180,180,180)` has luma `180`
+  and maps to white, so it disappears against the white background. Secondary
+  text (`resets …`, `PER-MODEL`, the footer) therefore uses
+  `GRAY = (100, 100, 100)` — dark enough to map to black and stay legible.
+- **Percentages are drawn outside the progress bars.** Global-window bars are
+  sized to leave room for the `%` label to their right, and per-model mini bars
+  show the `%` to their left. This keeps the label readable even when the bar
+  fill approaches 100% (a black fill would otherwise cover black text).
+
 ## Requirements
 
 - macOS (BLE via bleak/CoreBluetooth), Python 3.10+

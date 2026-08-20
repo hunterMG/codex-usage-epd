@@ -23,15 +23,16 @@ HEIGHT = 300
 BW_THRESHOLD = 140
 RED_MIN_R = 160
 
-BAR_W = 286  # shared bar width for global windows
 BAR_H = 14
 BAR_X = 100
 
 # colours (pure red pixels render red on the BWR panel)
+# GRAY must stay below BW_THRESHOLD in luma, otherwise it maps to white and
+# becomes invisible on the panel (3-colour panels have no grey).
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
-GRAY = (180, 180, 180)
+GRAY = (100, 100, 100)
 
 FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -134,8 +135,10 @@ def render_dashboard(
 
     # global windows (5H / weekly)
     y = 44
+    pct_w = _text_w(draw, "100%", f_body)
+    bar_w = width - 12 - BAR_X - pct_w - 10
     for w in balance.windows:
-        _draw_bar(draw, BAR_X, y, BAR_W, BAR_H, w.remaining_percent, warn_threshold)
+        _draw_bar(draw, BAR_X, y, bar_w, BAR_H, w.remaining_percent, warn_threshold)
         draw.text((12, y - 3), w.label, font=f_big, fill=BLACK)
         pct = f"{w.remaining_percent:.0f}%"
         draw.text((width - 12 - _text_w(draw, pct, f_body), y - 1), pct, font=f_body, fill=BLACK)
@@ -157,7 +160,7 @@ def render_dashboard(
         if row_bottom > height - 26:
             break
         draw.text((12, y), label, font=f_body, fill=BLACK)
-        # two mini bars (5H + weekly) on the right
+        # two mini bars (5H + weekly) on the right, pct outside the bar
         sub_w = 176
         sub_h = 10
         sub_x = width - 12 - sub_w
@@ -168,7 +171,7 @@ def render_dashboard(
             _draw_bar(draw, bar_x, by, sub_w, sub_h, w.remaining_percent, warn_threshold)
             pct = f"{w.remaining_percent:.0f}%"
             draw.text(
-                (bar_x + sub_w - _text_w(draw, pct, f_small) - 2, by - 1),
+                (bar_x - _text_w(draw, pct, f_small) - 6, by - 1),
                 pct,
                 font=f_small,
                 fill=BLACK,
