@@ -65,6 +65,20 @@ Consequences for the layout:
 - ChatGPT login for Codex (`~/.codex/auth.json` with `tokens.access_token`)
 - 4.2" 400x300 B/W/R panel with SSD1683/SSD1619 driver, model id `0x02`
 
+## Install with a coding agent
+
+Copy and paste this prompt into Codex or another coding agent:
+
+```text
+Install https://github.com/hunterMG/codex-usage-epd on this computer. Read the
+README first, check that the prerequisites are available, clone the repository
+into an appropriate user directory, install its dependencies with uv, generate
+the configuration file, and run the self-test. Do not print, copy, or modify my
+Codex authentication token. Tell me what configuration still needs my input,
+and ask for confirmation before installing or starting the launchd background
+agent.
+```
+
 ## Setup
 
 ```sh
