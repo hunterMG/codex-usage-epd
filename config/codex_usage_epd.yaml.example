@@ -12,7 +12,7 @@ ble:
   interleave: 50         # match web client: 50 writes w/o response, then 1 with
   patch_wakeup_pin: true
   pacing_ms: 0.0         # no pacing (web client sends back-to-back)
-  hold_after_refresh: 15.0  # stay connected until panel busy refresh completes
+  hold_after_refresh: 20.0  # stay connected until panel busy refresh completes
   slot: 0                # epdiy.cn slot firmware: image slot to write (0..N-1);
                          # "auto" = first free slot; -1 / "none" = no SET_SLOT cmd
 
@@ -26,4 +26,4 @@ render:
   preview: "preview.png"
 
 schedule:
-  interval_minutes: 5    # used by --loop / launchd
+  interval_minutes: 60    # used by --loop; launchd uses its plist StartInterval

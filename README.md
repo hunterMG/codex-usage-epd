@@ -21,7 +21,7 @@ codex-usage-epd/
 │   ├── config.py             # YAML config loading
 │   ├── model.py              # usage data model
 │   ├── render.py             # PIL dashboard rendering -> bitplanes
-│   ├── rle.py                # RLE + chunk encoding
+│   └── rle.py                # RLE + chunk encoding
 ├── config/
 │   ├── codex_usage_epd.yaml.example  # config template (generated config is gitignored)
 │   └── codex_usage_epd.yaml          # generated config (gitignored)
@@ -117,7 +117,7 @@ The config template lives at `config/codex_usage_epd.yaml.example`. Run
 when installed, `config/` in a checkout), or point at your own with
 `--config /path/to/codex_usage_epd.yaml`.
 
-## launchd (every 5 minutes)
+## launchd (every 60 minutes)
 
 ```sh
 ./deploy/install.sh    # fills the __REPO__ placeholder with the checkout path
@@ -145,14 +145,14 @@ Notable keys:
 - `ble.scan_timeout` - seconds per scan attempt; `ble.scan_retries` - retry the scan before giving up (missed advertisements)
 - `ble.interleave` - writes per response-ack, mirrors the web client (`50`)
 - `ble.pacing_ms` - delay between writes (`0.0` = back-to-back)
-- `ble.hold_after_refresh` - seconds to stay connected so the panel refresh completes (`15`)
+- `ble.hold_after_refresh` - seconds to stay connected so the panel refresh completes (`20`)
 - `ble.slot` - which image slot to write on the epdiy.cn slot firmware (`0..N-1`); `"auto"` picks the first free slot so an existing slot is never overwritten; `-1`/`"none"` disables the `SET_SLOT` command (plain EPD-nRF5 firmware)
 - `codex.auth_file` - where the OAuth tokens live (default `~/.codex/auth.json`)
 - `codex` reads `chatgpt_base_url` from `~/.codex/config.toml` if set
 - `render.font` - `.ttf` path (auto-detected on macOS/Windows/Linux otherwise)
 - `render.warn_threshold` - remaining % that turns a bar red
 - `render.preview` - filename for the rendered preview PNG
-- `schedule.interval_minutes` - interval used by `--loop` / launchd
+- `schedule.interval_minutes` - interval used by `--loop`; launchd uses the fixed `StartInterval` in `deploy/com.codex-usage-epd.plist.in`
 
 ## Notes
 

@@ -24,7 +24,7 @@ _DEFAULTS = {
         "interleave": 50,
         "patch_wakeup_pin": True,
         "pacing_ms": 0.0,
-        "hold_after_refresh": 15.0,
+        "hold_after_refresh": 20.0,
         "slot": 0,
     },
     "codex": {
