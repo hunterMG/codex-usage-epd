@@ -77,8 +77,8 @@ def _text_w(draw: ImageDraw.ImageDraw, text: str, font) -> int:
 
 def _fmt_time(epoch: int | None) -> str:
     if not epoch:
-        return "--:--"
-    return datetime.fromtimestamp(epoch).strftime("%H:%M")
+        return "--.-- --:--"
+    return datetime.fromtimestamp(epoch).strftime("%m.%d %H:%M")
 
 
 def _draw_bar(
@@ -128,6 +128,13 @@ def render_dashboard(
 
     # header
     draw.text((12, 8), "CODEX USAGE", font=f_title, fill=BLACK)
+    date_label = balance.fetched_at.strftime("%m.%d %a.")
+    draw.text(
+        (12 + _text_w(draw, "CODEX USAGE", f_title) + 55, 10),
+        date_label,
+        font=f_body,
+        fill=BLACK,
+    )
     plan = (balance.plan_type or "").upper()
     if plan:
         plan_w = _text_w(draw, plan, f_body)
@@ -143,7 +150,7 @@ def render_dashboard(
         pct = f"{w.remaining_percent:.0f}%"
         draw.text((width - 12 - _text_w(draw, pct, f_body), y - 1), pct, font=f_body, fill=BLACK)
         reset = _fmt_time(w.resets_at)
-        draw.text((BAR_X, y + BAR_H + 3), f"resets {reset}", font=f_small, fill=GRAY)
+        draw.text((BAR_X, y + BAR_H + 3), f"reset at  {reset}", font=f_small, fill=GRAY)
         y += 62
 
     # divider
