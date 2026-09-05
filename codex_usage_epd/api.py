@@ -18,7 +18,7 @@ try:
 except ImportError:  # pragma: no cover
     requests = None  # type: ignore[assignment]
 
-from .model import Balance, ModelUsage, Window
+from .model import Balance, ModelTokenUsage, Window
 
 DEFAULT_CHATGPT_BASE = "https://chatgpt.com/backend-api/"
 USAGE_PATH = "/wham/usage"
@@ -222,19 +222,9 @@ def parse_usage(raw: dict) -> Balance:
     rate = raw.get("rate_limit") or {}
     windows = _windows_from_rate_limit(rate) if isinstance(rate, dict) else []
 
-    models: list[ModelUsage] = []
-    for item in raw.get("additional_rate_limits") or []:
-        if not isinstance(item, dict):
-            continue
-        limit_name = item.get("limit_name") or item.get("metered_feature") or "model"
-        rl = item.get("rate_limit")
-        model_windows = _windows_from_rate_limit(rl) if isinstance(rl, dict) else []
-        models.append(ModelUsage(id=limit_name, windows=model_windows))
-
     return Balance(
         plan_type=plan_type,
         windows=windows,
-        models=models,
         credits_balance=credits_balance,
         credits_unlimited=credits_unlimited,
         has_credits=has_credits,
@@ -252,13 +242,9 @@ def sample_balance() -> Balance:
             Window("weekly", "WK", used_percent=36.0, resets_at=now + 3 * 86400, limit_seconds=7 * 86400),
         ],
         models=[
-            ModelUsage(
-                "gpt-5.3-codex-spark",
-                [
-                    Window("five_hour", "5H", used_percent=4.0, resets_at=now + 3600, limit_seconds=5 * 3600),
-                    Window("weekly", "WK", used_percent=9.0, resets_at=now + 3 * 86400, limit_seconds=7 * 86400),
-                ],
-            )
+            ModelTokenUsage("gpt-5.6-sol", 12_840_000),
+            ModelTokenUsage("gpt-6-astra", 6_275_000),
+            ModelTokenUsage("gpt-5.6-luna", 925_000),
         ],
         has_credits=False,
         source="sample",

@@ -35,7 +35,7 @@ codex-usage-epd/
 ## Features
 
 - Plan quota: 5-hour + weekly windows (used / remaining %, reset time)
-- Per-model usage from `additional_rate_limits` (spark / mini / realtime ...)
+- Today's top three models by local token usage, shown in millions
 - Credits balance when present on the plan
 - Red alert bars when remaining % drops below `render.warn_threshold`
 - `--selftest` verifies RLE + bitplane round-trips without network/hardware
@@ -52,12 +52,18 @@ Consequences for the layout:
 
 - **Light grey text is invisible.** A "grey" like `(180,180,180)` has luma `180`
   and maps to white, so it disappears against the white background. Secondary
-  text (`resets …`, `PER-MODEL`, the footer) therefore uses
+  text (`resets …`, `TODAY TOKENS (M)`, the footer) therefore uses
   `GRAY = (100, 100, 100)` — dark enough to map to black and stay legible.
 - **Percentages are drawn outside the progress bars.** Global-window bars are
-  sized to leave room for the `%` label to their right, and per-model mini bars
-  show the `%` to their left. This keeps the label readable even when the bar
-  fill approaches 100% (a black fill would otherwise cover black text).
+  sized to leave room for the `%` label to their right. This keeps the label
+  readable even when the bar fill approaches 100% (a black fill would otherwise
+  cover black text).
+
+The `TODAY TOKENS (M)` section reads local rollout logs from
+`$CODEX_HOME/sessions` (or `~/.codex/sessions`) and `archived_sessions`. It
+groups input + output tokens by the active model in the local timezone, sorts
+them by token count, and displays the top three. Cached input is already part of
+the input count and is not added a second time.
 
 ## Requirements
 

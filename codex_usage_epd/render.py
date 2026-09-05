@@ -9,6 +9,7 @@ Bitplane semantics mirror EPD-nRF5/html/js/dithering.js (threeColor):
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
@@ -100,15 +101,23 @@ def _draw_bar(
 
 
 def _short_model(name: str) -> str:
-    parts = name.split("-")
-    for token in ("spark", "mini", "realtime", "lite"):
-        if token in parts:
-            idx = parts.index(token)
-            keep = parts[idx - 1] if idx > 0 else name
-            return keep.upper()
-    if len(name) > 18:
-        return name[:17]
-    return name
+    name = name.strip().split("/")[-1]
+    name = re.sub(r"(?:-|\s)(?:\d{8}|\d{4}-\d{2}-\d{2})$", "", name)
+    return name.upper() or "UNKNOWN"
+
+
+def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> str:
+    if _text_w(draw, text, font) <= max_width:
+        return text
+    while text and _text_w(draw, text + "…", font) > max_width:
+        text = text[:-1]
+    return text + "…"
+
+
+def _fmt_millions(tokens: int) -> str:
+    millions = max(0, tokens) / 1_000_000
+    decimals = 3 if millions < 1 else 2 if millions < 10 else 1
+    return f"{millions:.{decimals}f}M"
 
 
 def render_dashboard(
@@ -157,33 +166,22 @@ def render_dashboard(
     draw.line((12, y + 4, width - 12, y + 4), fill=BLACK, width=1)
     y += 14
 
-    # per-model usage
+    # Today's local token usage, sorted by model (top three)
     models = balance.models[:3]
-    draw.text((12, y), "PER-MODEL", font=f_small, fill=GRAY)
+    draw.text((12, y), "TODAY TOKENS (M)", font=f_small, fill=GRAY)
     y += 24
     for m in models:
-        label = _short_model(m.id)
-        row_bottom = y + 30
+        value = _fmt_millions(m.tokens)
+        value_w = _text_w(draw, value, f_body)
+        label = _fit_text(draw, _short_model(m.id), f_body, width - value_w - 42)
+        row_bottom = y + 18
         if row_bottom > height - 26:
             break
         draw.text((12, y), label, font=f_body, fill=BLACK)
-        # two mini bars (5H + weekly) on the right, pct outside the bar
-        sub_w = 176
-        sub_h = 10
-        sub_x = width - 12 - sub_w
-        label_w = _text_w(draw, label, f_body)
-        bar_x = max(sub_x, 12 + label_w + 16)
-        for wi, w in enumerate(m.windows[:2]):
-            by = y + 4 + wi * 13
-            _draw_bar(draw, bar_x, by, sub_w, sub_h, w.remaining_percent, warn_threshold)
-            pct = f"{w.remaining_percent:.0f}%"
-            draw.text(
-                (bar_x - _text_w(draw, pct, f_small) - 6, by - 1),
-                pct,
-                font=f_small,
-                fill=BLACK,
-            )
-        y += 34
+        draw.text((width - 12 - value_w, y), value, font=f_body, fill=BLACK)
+        y += 20
+    if not models:
+        draw.text((12, y), "No local usage today", font=f_body, fill=GRAY)
 
     # credits + footer
     credits_line = None

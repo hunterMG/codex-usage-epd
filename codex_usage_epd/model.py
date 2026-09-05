@@ -1,8 +1,8 @@
 """Data model for Codex usage quota snapshots.
 
-Field names mirror the `wham/usage` payload decoded by CodexBar's
-CodexOAuthUsageFetcher (rate_limit.primary_window/secondary_window,
-credits, additional_rate_limits, plan_type).
+Quota field names mirror the `wham/usage` payload decoded by CodexBar's
+CodexOAuthUsageFetcher. Per-model token totals come from today's local Codex
+session logs, like CodexBar's local token-history view.
 """
 
 from __future__ import annotations
@@ -25,16 +25,16 @@ class Window:
 
 
 @dataclass
-class ModelUsage:
-    id: str  # e.g. "gpt-5.3-codex-spark"
-    windows: list[Window] = field(default_factory=list)
+class ModelTokenUsage:
+    id: str  # e.g. "gpt-5.6-sol"
+    tokens: int
 
 
 @dataclass
 class Balance:
     plan_type: str | None
     windows: list[Window] = field(default_factory=list)  # global windows
-    models: list[ModelUsage] = field(default_factory=list)
+    models: list[ModelTokenUsage] = field(default_factory=list)
     credits_balance: float | None = None
     credits_unlimited: bool = False
     has_credits: bool = False
@@ -52,8 +52,7 @@ class Balance:
         for w in self.windows:
             lines.append(f"  {w.name}: used {w.used_percent:.1f}% remaining {w.remaining_percent:.1f}%")
         for m in self.models:
-            desc = ", ".join(f"{w.name}={w.used_percent:.1f}%" for w in m.windows)
-            lines.append(f"  model {m.id}: {desc}")
+            lines.append(f"  today {m.id}: {m.tokens} tokens")
         if self.has_credits:
             lines.append(f"  credits: balance={self.credits_balance} unlimited={self.credits_unlimited}")
         return "\n".join(lines)
