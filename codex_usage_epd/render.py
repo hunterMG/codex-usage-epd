@@ -10,11 +10,12 @@ Bitplane semantics mirror EPD-nRF5/html/js/dithering.js (threeColor):
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any, cast
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .model import Balance, Window
+from .model import Balance
 
 # dashboard geometry (matches 4.2" 400x300 BWR panel)
 WIDTH = 400
@@ -76,13 +77,13 @@ def _font(path: str, size: int) -> ImageFont.FreeTypeFont:
 
 def _text_w(draw: ImageDraw.ImageDraw, text: str, font) -> int:
     box = draw.textbbox((0, 0), text, font=font)
-    return box[2] - box[0]
+    return int(box[2] - box[0])
 
 
 def _fmt_time(epoch: int | None) -> str:
     if not epoch:
         return "--.-- --:--"
-    return datetime.fromtimestamp(epoch).strftime("%m.%d %H:%M")
+    return datetime.fromtimestamp(epoch, tz=timezone.utc).astimezone().strftime("%m.%d %H:%M")
 
 
 def _draw_bar(
@@ -253,7 +254,7 @@ def image_to_planes(img: Image.Image) -> tuple[bytes, bytes]:
     byte_width = (w + 7) // 8
     bw = bytearray(byte_width * h)
     red = bytearray(byte_width * h)
-    px = img.load()
+    px = cast(Any, img.load())
     for yy in range(h):
         for xx in range(w):
             r, g, b = px[xx, yy][:3]
@@ -276,6 +277,7 @@ def planes_to_rgb(bw: bytes, red: bytes, width: int, height: int) -> Image.Image
     img = Image.new("RGB", (width, height), WHITE)
     px = img.load()
     byte_width = (width + 7) // 8
+    px = cast(Any, px)
     for yy in range(height):
         for xx in range(width):
             idx = yy * byte_width + xx // 8

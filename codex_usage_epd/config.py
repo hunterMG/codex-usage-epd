@@ -109,9 +109,9 @@ def _merge(user_cfg: dict, src: str) -> dict:
             merged[section].update(user_cfg[section])
 
     # top-level flat keys are accepted too
-    for key in user_cfg:
+    for key, value in user_cfg.items():
         if key not in _DEFAULTS:
-            merged[key] = user_cfg[key]
+            merged[key] = value
 
     merged["_path"] = src
     return merged

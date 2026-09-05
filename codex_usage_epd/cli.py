@@ -20,7 +20,14 @@ import sys
 import time
 from pathlib import Path
 
-from .api import build_usage_url, fetch_usage, parse_usage, read_auth, sample_balance, UsageFetchError
+from .api import (
+    UsageFetchError,
+    build_usage_url,
+    fetch_usage,
+    parse_usage,
+    read_auth,
+    sample_balance,
+)
 from .ble import BlePushError, probe, push_display, test_screen
 from .config import expand_user, load_config
 from .render import image_to_planes, planes_to_rgb, render_dashboard, resolve_font_path
@@ -114,6 +121,7 @@ def run_selftest(cfg: dict, font_path: str) -> int:
     # plane round-trip: every pure black/white/red pixel must decode back
     back = planes_to_rgb(bw, red, img.size[0], img.size[1])
     pa, pb = img.load(), back.load()
+    assert pa is not None and pb is not None
     bad = 0
     checked = 0
     for yy in range(img.size[1]):

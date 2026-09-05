@@ -57,7 +57,7 @@ async def _resolve_device(device: str, scan_timeout: float, scan_retries: int = 
             print(f"[ble] scan attempt {attempt}/{scan_retries} ...")
         target: asyncio.Future[tuple[str, str]] = asyncio.get_running_loop().create_future()
 
-        def _cb(device_, _adv):
+        def _cb(device_, _adv, target=target):
             if device_.name:
                 seen[device_.address] = device_.name
             if device_.name and DEFAULT_DEVICE_NAME in device_.name and not target.done():
@@ -85,7 +85,7 @@ async def _request_mtu(client, mtu: int) -> None:
         return
     try:
         await request_mtu(mtu)
-    except Exception as exc:  # macOS/CB may not support explicit MTU exchange
+    except Exception as exc:  # noqa: BLE001 — backend may not support MTU exchange
         print(f"[ble] request_mtu skipped: {exc}")
 
 
@@ -100,7 +100,7 @@ class _Notifier:
         self.slots_used_mask: int = 0
         self.slots_selected: int | None = None
 
-    def __call__(self, _handle: int, data: bytearray) -> None:
+    def __call__(self, _characteristic: object, data: bytearray) -> None:
         blob = bytes(data)
         if self.config is None and len(blob) >= 11 and not blob.startswith((b"mtu=", b"t=", b"slots=")):
             self.config = blob
@@ -185,7 +185,7 @@ async def probe(
             if version_char:
                 ver = await client.read_gatt_char(version_char)
                 print(f"[probe] firmware version: 0x{ver[0]:02x}")
-        except Exception:
+        except Exception:  # noqa: BLE001, S110 — version characteristic is optional
             pass
         await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_INIT, model_id & 0xFF]), response=True)
         deadline = time.monotonic() + 2.0
@@ -301,8 +301,7 @@ async def push_display(
         print(f"[ble] negotiated mtu={negotiated} device max_data_len={max_data_len} chunk={chunk_size}B")
 
         # if configured, force wakeup_pin=0xFF so the device keeps re-advertising
-        if patch_wakeup_pin and notifier.config and len(notifier.config) >= 11:
-            if notifier.config[8] != 0xFF:
+        if patch_wakeup_pin and notifier.config and len(notifier.config) >= 11 and notifier.config[8] != 0xFF:
                 patched = bytearray(notifier.config[:11])
                 patched[8] = 0xFF
                 print("[ble] patching config wakeup_pin -> 0xFF")
