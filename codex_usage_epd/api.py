@@ -168,6 +168,7 @@ def _window(raw, name: str, label: str) -> Window | None:
         used_percent=used,
         resets_at=_to_int(raw.get("reset_at")) or _to_int(raw.get("resets_at")),
         limit_seconds=_to_int(raw.get("limit_window_seconds")),
+        reset_after_seconds=_to_int(raw.get("reset_after_seconds")),
     )
 
 
@@ -238,8 +239,8 @@ def sample_balance() -> Balance:
     return Balance(
         plan_type="plus",
         windows=[
-            Window("five_hour", "5H", used_percent=17.0, resets_at=now + 3600, limit_seconds=5 * 3600),
-            Window("weekly", "WK", used_percent=36.0, resets_at=now + 3 * 86400, limit_seconds=7 * 86400),
+            Window("five_hour", "5H", used_percent=17.0, resets_at=now + 3600, limit_seconds=5 * 3600, reset_after_seconds=3600),
+            Window("weekly", "WK", used_percent=36.0, resets_at=now + 3 * 86400, limit_seconds=7 * 86400, reset_after_seconds=3 * 86400),
         ],
         models=[
             ModelTokenUsage("gpt-5.6-sol", 12_840_000),

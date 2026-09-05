@@ -35,7 +35,8 @@ codex-usage-epd/
 ## Features
 
 - Plan quota: 5-hour + weekly windows (used / remaining %, reset time)
-- Today's top three models by local token usage, shown in millions
+- Today's top three models by local token usage, shown in millions with bars
+  proportional to the most-used model
 - Credits balance when present on the plan
 - Red alert bars when remaining % drops below `render.warn_threshold`
 - `--selftest` verifies RLE + bitplane round-trips without network/hardware

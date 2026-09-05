@@ -26,6 +26,9 @@ RED_MIN_R = 160
 
 BAR_H = 14
 BAR_X = 100
+MODEL_BAR_X = 12
+MODEL_BAR_W = 220
+MODEL_BAR_H = 10
 
 # colours (pure red pixels render red on the BWR panel)
 # GRAY must stay below BW_THRESHOLD in luma, otherwise it maps to white and
@@ -103,7 +106,9 @@ def _draw_bar(
 def _short_model(name: str) -> str:
     name = name.strip().split("/")[-1]
     name = re.sub(r"(?:-|\s)(?:\d{8}|\d{4}-\d{2}-\d{2})$", "", name)
-    return name.upper() or "UNKNOWN"
+    # name = name.upper()
+    name = re.sub(r"^gpt-", "", name)
+    return name or "UNKNOWN"
 
 
 def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> str:
@@ -114,9 +119,15 @@ def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> str
     return text + "…"
 
 
-def _fmt_millions(tokens: int) -> str:
-    millions = max(0, tokens) / 1_000_000
-    decimals = 3 if millions < 1 else 2 if millions < 10 else 1
+def _fmt_tokens(tokens: int) -> str:
+    tokens = max(0, tokens)
+    if tokens < 1_000_000:
+        thousands = tokens / 1_000
+        decimals = 3 if thousands < 1 else 2 if thousands < 10 else 1 if thousands < 100 else 0
+        return f"{thousands:.{decimals}f}K"
+
+    millions = tokens / 1_000_000
+    decimals = 2 if millions < 10 else 1
     return f"{millions:.{decimals}f}M"
 
 
@@ -136,10 +147,11 @@ def render_dashboard(
     f_small = _font(font_path, 12)
 
     # header
-    draw.text((12, 8), "CODEX USAGE", font=f_title, fill=BLACK)
+    title = "Codex quota left"
+    draw.text((12, 8), title, font=f_title, fill=BLACK)
     date_label = balance.fetched_at.strftime("%m.%d %a.")
     draw.text(
-        (12 + _text_w(draw, "CODEX USAGE", f_title) + 55, 10),
+        (12 + _text_w(draw, title, f_title) + 55, 10),
         date_label,
         font=f_body,
         fill=BLACK,
@@ -155,30 +167,67 @@ def render_dashboard(
     bar_w = width - 12 - BAR_X - pct_w - 10
     for w in balance.windows:
         _draw_bar(draw, BAR_X, y, bar_w, BAR_H, w.remaining_percent, warn_threshold)
-        draw.text((12, y - 3), w.label, font=f_big, fill=BLACK)
+        if w.name == "weekly" or w.label == "WK":
+            label = "Weekly"
+            box = draw.textbbox((0, 0), label, font=f_body)
+            label_y = y + (BAR_H - (box[3] - box[1])) // 2 - box[1]
+            draw.text((12, label_y), label, font=f_body, fill=BLACK)
+        else:
+            draw.text((12, y - 3), w.label, font=f_big, fill=BLACK)
         pct = f"{w.remaining_percent:.0f}%"
         draw.text((width - 12 - _text_w(draw, pct, f_body), y - 1), pct, font=f_body, fill=BLACK)
         reset = _fmt_time(w.resets_at)
-        draw.text((BAR_X, y + BAR_H + 3), f"reset at  {reset}", font=f_small, fill=GRAY)
+        reset_label = f"reset at  {reset}"
+        if w.name == "weekly" or w.label == "WK":
+            if w.reset_after_seconds is not None:
+                hours_left = max(0, w.reset_after_seconds) // 3600
+                days, hours = divmod(hours_left, 24)
+                reset_label = f"Resets in {days}d {hours}h ({reset})."
+            elif w.resets_at:
+                reset_label = f"Resets at {reset}."
+            else:
+                reset_label = "Reset time unavailable"
+        draw.text((BAR_X, y + BAR_H + 3), reset_label, font=f_small, fill=GRAY)
         y += 62
 
     # divider
     draw.line((12, y + 4, width - 12, y + 4), fill=BLACK, width=1)
     y += 14
 
-    # Today's local token usage, sorted by model (top three)
+    # Today's local token usage, sorted by model (top three). The largest
+    # model is the reference width; the remaining bars are proportional to it.
     models = balance.models[:3]
-    draw.text((12, y), "TODAY TOKENS (M)", font=f_small, fill=GRAY)
+    draw.text((12, y), "Tokens used today", font=f_small, fill=GRAY)
     y += 24
+    max_tokens = max((m.tokens for m in models), default=0)
     for m in models:
-        value = _fmt_millions(m.tokens)
+        value = _fmt_tokens(m.tokens)
         value_w = _text_w(draw, value, f_body)
-        label = _fit_text(draw, _short_model(m.id), f_body, width - value_w - 42)
-        row_bottom = y + 18
+        label = _fit_text(draw, _short_model(m.id), f_body, MODEL_BAR_X + 82)
+        row_bottom = y + MODEL_BAR_H
         if row_bottom > height - 26:
             break
         draw.text((12, y), label, font=f_body, fill=BLACK)
         draw.text((width - 12 - value_w, y), value, font=f_body, fill=BLACK)
+        bar_x = MODEL_BAR_X + 86
+        bar_y = y + 3
+        if m.tokens >= max_tokens > 0:
+            draw.rectangle(
+                (bar_x, bar_y, bar_x + MODEL_BAR_W - 1, bar_y + MODEL_BAR_H - 1),
+                fill=BLACK,
+            )
+        else:
+            draw.rectangle(
+                (bar_x, bar_y, bar_x + MODEL_BAR_W - 1, bar_y + MODEL_BAR_H - 1),
+                outline=BLACK,
+                width=1,
+            )
+            filled = int((MODEL_BAR_W - 2) * max(0.0, min(1.0, m.tokens / max_tokens))) if max_tokens else 0
+            if filled:
+                draw.rectangle(
+                    (bar_x + 1, bar_y + 1, bar_x + filled, bar_y + MODEL_BAR_H - 2),
+                    fill=BLACK,
+                )
         y += 20
     if not models:
         draw.text((12, y), "No local usage today", font=f_body, fill=GRAY)

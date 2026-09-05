@@ -18,6 +18,7 @@ class Window:
     used_percent: float  # 0..100 used
     resets_at: int | None  # unix epoch seconds
     limit_seconds: int | None
+    reset_after_seconds: int | None = None
 
     @property
     def remaining_percent(self) -> float:
