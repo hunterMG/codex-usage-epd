@@ -24,6 +24,7 @@ render:
   font: ""               # empty = auto-detect; or path to a .ttf
   warn_threshold: 20     # remaining % below this renders the bar red
   preview: "preview.png"
+  show_history: false    # opt in to the Last 7 days chart beside today's usage
 
 schedule:
   interval_minutes: 60    # used by --loop; launchd uses its plist StartInterval

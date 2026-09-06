@@ -41,13 +41,17 @@ class DailyTokenUsage:
 class Balance:
     plan_type: str | None
     windows: list[Window] = field(default_factory=list)  # global windows
-    models: list[ModelTokenUsage] = field(default_factory=list)
+    models: list[ModelTokenUsage] = field(default_factory=list)  # all today's models, ranked
     credits_balance: float | None = None
     credits_unlimited: bool = False
     has_credits: bool = False
     fetched_at: datetime = field(default_factory=datetime.now)
     source: str = "oauth"  # "oauth" | "sample"
     daily_usage: list[DailyTokenUsage] = field(default_factory=list)
+
+    @property
+    def total_tokens_today(self) -> int:
+        return sum(model.tokens for model in self.models)
 
     def window(self, name: str) -> Window | None:
         for w in self.windows:
@@ -59,6 +63,7 @@ class Balance:
         lines = [f"plan: {self.plan_type}"]
         for w in self.windows:
             lines.append(f"  {w.name}: used {w.used_percent:.1f}% remaining {w.remaining_percent:.1f}%")
+        lines.append(f"  today Total: {self.total_tokens_today} tokens")
         for m in self.models:
             lines.append(f"  today {m.id}: {m.tokens} tokens")
         for day in self.daily_usage:

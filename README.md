@@ -35,10 +35,11 @@ codex-usage-epd/
 ## Features
 
 - Plan quota: 5-hour + weekly windows (used / remaining %, reset time)
-- Left: "Last 7 days" line chart of total tokens for the seven completed local
-  calendar days before today, with dates and compact K/M/B totals
-- Right: "Tokens used today", showing the top three models with bars
-  proportional to the most-used model
+- "Tokens used today": a Total across all models, plus the top three models
+  with bars proportional to the most-used model
+- Optional "Last 7 days" line chart for the seven completed local calendar days
+  before today, with dates and compact K/M/B totals. Enable `render.show_history`
+  or pass `--show-history` to place the chart beside today's usage
 - Credits balance when present on the plan
 - Red alert bars when remaining % drops below `render.warn_threshold`
 - `--selftest` verifies RLE + bitplane round-trips without network/hardware
@@ -66,8 +67,9 @@ The token sections read local rollout logs from
 `$CODEX_HOME/sessions` (or `~/.codex/sessions`) and `archived_sessions`. They
 group input + output tokens by date and active model in the local timezone.
 The chart sums all models for each day and shows zero for dates without local
-usage. Today's section sorts models by token count and displays the top three.
-Both sections share one log scan. Cached input is already part of the input
+usage. Today's Total includes every model; the breakdown displays the top three.
+With history enabled, both sections share one log scan. Otherwise only today's
+usage is collected. Cached input is already part of the input
 count and is not added a second time.
 
 ## Requirements
@@ -177,6 +179,7 @@ Notable keys:
 - `render.font` - `.ttf` path (auto-detected on macOS/Windows/Linux otherwise)
 - `render.warn_threshold` - remaining % that turns a bar red
 - `render.preview` - filename for the rendered preview PNG
+- `render.show_history` - show the "Last 7 days" chart (default `false`); override with `--show-history` or `--no-show-history`, including in `--selftest`
 - `schedule.interval_minutes` - interval used by `--loop`; launchd uses the fixed `StartInterval` in `deploy/com.codex-usage-epd.plist.in`
 
 ## Notes

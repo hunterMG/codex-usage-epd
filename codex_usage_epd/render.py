@@ -171,6 +171,7 @@ def render_dashboard(
     warn_threshold: float = 20.0,
     width: int = WIDTH,
     height: int = HEIGHT,
+    show_history: bool = False,
 ) -> Image.Image:
     img = Image.new("RGB", (width, height), WHITE)
     draw = ImageDraw.Draw(img)
@@ -222,38 +223,45 @@ def render_dashboard(
             else:
                 reset_label = "Reset time unavailable"
         draw.text((BAR_X, y + BAR_H + 3), reset_label, font=f_small, fill=GRAY)
-        y += 62
+        y += 50
 
     # divider
     draw.line((12, y + 4, width - 12, y + 4), fill=BLACK, width=1)
     y += 14
 
-    # History on the left, today's top models on the right.
-    split = round(width * 0.535)
-    right_x = split + 10
+    # Today fills the panel unless the optional history chart is enabled.
+    right_x = 12
+    if show_history:
+        split = round(width * 0.535)
+        right_x = split + 10
+        draw.text((12, y), "Last 7 days", font=f_small, fill=GRAY)
+        _draw_history(draw, balance, font_path, y, split - 6, height - 28)
+        draw.line((split, y, split, height - 28), fill=BLACK)
     right_edge = width - 12
     column_w = right_edge - right_x
-    draw.text((12, y), "Last 7 days", font=f_small, fill=GRAY)
-    _draw_history(draw, balance, font_path, y, split - 6, height - 28)
-    draw.line((split, y, split, height - 28), fill=BLACK)
     models = balance.models[:3]
     draw.text((right_x, y), "Tokens used today", font=f_small, fill=GRAY)
     y += 22
+    total_y = height - 42
     max_tokens = max((m.tokens for m in models), default=0)
     for m in models:
         value = _fmt_tokens(m.tokens)
         value_w = _text_w(draw, value, f_small)
         label = _fit_text(draw, _short_model(m.id), f_small, column_w - value_w - 8)
         row_bottom = y + 20
-        if row_bottom > height - 26:
+        if row_bottom > total_y - 4:
             break
         draw.text((right_x, y), label, font=f_small, fill=BLACK)
         draw.text((right_edge - value_w, y), value, font=f_small, fill=BLACK)
         percent = 100 * m.tokens / max_tokens if max_tokens else 0
         _draw_bar(draw, right_x, y + 15, column_w, 5, percent, -1)
-        y += 24
+        y += 26
     if not models:
         draw.text((right_x, y), "No local usage today", font=f_small, fill=GRAY)
+
+    total = f"Total: {_fmt_tokens(balance.total_tokens_today)}"
+    total_x = right_edge - _text_w(draw, total, f_body)
+    draw.text((total_x, total_y), total, font=f_body, fill=BLACK)
 
     # credits + footer
     credits_line = None

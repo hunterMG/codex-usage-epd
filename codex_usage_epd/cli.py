@@ -39,6 +39,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--config", default=None, help="path to YAML config (default: repo config/ or bundled)")
     p.add_argument("--debug", action="store_true", help="dump raw wham/usage JSON to tmp/usage_dump.json")
     p.add_argument("--font", default=None, help="override render.font")
+    p.add_argument("--show-history", action=argparse.BooleanOptionalAction, default=None,
+                   help="show the Last 7 days token chart (overrides render.show_history)")
     p.add_argument("--sample", action="store_true", help="use synthetic sample data (no network)")
     p.add_argument("--force", action="store_true", help="with --init: overwrite an existing config")
     g = p.add_mutually_exclusive_group()
@@ -66,7 +68,10 @@ def load_balance(args: argparse.Namespace, cfg: dict) -> tuple:
         dump_path.write_text(json.dumps(raw, indent=2))
         print(f"[debug] raw wham/usage JSON -> {dump_path}")
     balance = parse_usage(raw)
-    balance.models, balance.daily_usage = read_token_usage(Path(auth_file).parent, now=balance.fetched_at)
+    balance.models, balance.daily_usage = read_token_usage(
+        Path(auth_file).parent, now=balance.fetched_at, limit=None,
+        history_days=7 if cfg["render"].get("show_history", False) else 0,
+    )
     return balance, raw
 
 
@@ -76,6 +81,7 @@ def render(balance, cfg: dict, font_path: str) -> tuple[bytes, bytes]:
         balance,
         font_path=font_path,
         warn_threshold=render_cfg.get("warn_threshold", 20.0),
+        show_history=render_cfg.get("show_history", False),
         width=cfg["display"]["width"],
         height=cfg["display"]["height"],
     )
@@ -92,6 +98,7 @@ def run_selftest(cfg: dict, font_path: str) -> int:
         balance,
         font_path=font_path,
         warn_threshold=render_cfg.get("warn_threshold", 20.0),
+        show_history=render_cfg.get("show_history", False),
         width=cfg["display"]["width"],
         height=cfg["display"]["height"],
     )
@@ -197,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     cfg = load_config(args.config)
+    if args.show_history is not None:
+        cfg["render"]["show_history"] = args.show_history
     print(f"[cfg] using {cfg['_path']}")
 
     if args.selftest:

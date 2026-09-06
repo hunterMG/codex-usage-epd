@@ -35,6 +35,7 @@ _DEFAULTS = {
         "font": "",
         "warn_threshold": 20.0,
         "preview": "preview.png",
+        "show_history": False,
     },
     "schedule": {
         "interval_minutes": 5,

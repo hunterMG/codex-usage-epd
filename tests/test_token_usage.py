@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 
+from codex_usage_epd.model import Balance
 from codex_usage_epd.token_usage import read_today_model_usage, read_token_usage
 
 
@@ -59,6 +60,12 @@ def test_reads_today_groups_models_and_returns_top_three(tmp_path):
         ("gpt-medium", 2_000_000),
         ("gpt-small", 100_000),
     ]
+
+    all_models, history = read_token_usage(tmp_path, now=now, limit=None, history_days=0)
+    balance = Balance(plan_type=None, models=all_models)
+    assert len(all_models) == 4
+    assert balance.total_tokens_today == 6_150_000
+    assert history == []
 
 
 def test_filters_by_local_day_and_uses_total_deltas_when_last_is_missing(tmp_path):

@@ -399,11 +399,12 @@ def read_today_model_usage(
 def read_token_usage(
     codex_home: Path,
     now: datetime | None = None,
-    limit: int = 3,
+    limit: int | None = 3,
     history_days: int = 7,
 ) -> tuple[list[ModelTokenUsage], list[DailyTokenUsage]]:
     """Read today's top models and preceding complete local days in one scan.
 
+    Pass limit=None to return every model for an accurate today total.
     History includes every model and fills days without events with zero.
     Events before the range still establish cumulative counter baselines.
     """
@@ -432,5 +433,6 @@ def read_token_usage(
         for offset in range(history_days)
         for day in [(start + timedelta(days=offset)).date()]
     ]
-    models = [ModelTokenUsage(id=model, tokens=tokens) for model, tokens in ranked[: max(0, limit)]]
+    selected = ranked if limit is None else ranked[: max(0, limit)]
+    models = [ModelTokenUsage(id=model, tokens=tokens) for model, tokens in selected]
     return models, history
