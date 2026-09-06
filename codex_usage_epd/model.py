@@ -8,7 +8,7 @@ session logs, like CodexBar's local token-history view.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 
 @dataclass
@@ -32,6 +32,12 @@ class ModelTokenUsage:
 
 
 @dataclass
+class DailyTokenUsage:
+    day: date
+    tokens: int
+
+
+@dataclass
 class Balance:
     plan_type: str | None
     windows: list[Window] = field(default_factory=list)  # global windows
@@ -41,6 +47,7 @@ class Balance:
     has_credits: bool = False
     fetched_at: datetime = field(default_factory=datetime.now)
     source: str = "oauth"  # "oauth" | "sample"
+    daily_usage: list[DailyTokenUsage] = field(default_factory=list)
 
     def window(self, name: str) -> Window | None:
         for w in self.windows:
@@ -54,6 +61,8 @@ class Balance:
             lines.append(f"  {w.name}: used {w.used_percent:.1f}% remaining {w.remaining_percent:.1f}%")
         for m in self.models:
             lines.append(f"  today {m.id}: {m.tokens} tokens")
+        for day in self.daily_usage:
+            lines.append(f"  {day.day.isoformat()}: {day.tokens} tokens")
         if self.has_credits:
             lines.append(f"  credits: balance={self.credits_balance} unlimited={self.credits_unlimited}")
         return "\n".join(lines)

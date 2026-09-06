@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 
-from codex_usage_epd.token_usage import read_today_model_usage
+from codex_usage_epd.token_usage import read_today_model_usage, read_token_usage
 
 
 def _write_log(path, records):
@@ -145,3 +145,58 @@ def test_contains_counter_reset_in_a_rollout_spanning_two_days(tmp_path):
     # The raw cumulative counter is 306,178, but 227,428 belongs to the
     # reset/interleaved prefix and must not be counted again.
     assert [(item.id, item.tokens) for item in result] == [("gpt-5.6-sol", 78_750)]
+
+
+def test_history_uses_local_dates_and_preserves_baselines_across_range(tmp_path):
+    records = [
+        _context("2026-08-28T15:00:00Z", "gpt-example"),
+        _usage("2026-08-28T15:59:59Z", total={"input_tokens": 100}),
+        _usage("2026-08-28T16:00:00Z", total={"input_tokens": 150}),
+        _usage("2026-08-29T15:59:59Z", total={"input_tokens": 200}),
+        _usage("2026-08-29T16:00:00Z", total={"input_tokens": 230}),
+        _usage("2026-09-04T15:59:59Z", total={"input_tokens": 250}),
+        _usage("2026-09-04T16:00:00Z", total={"input_tokens": 260}),
+        _usage("2026-09-05T16:00:00Z", total={"input_tokens": 999}),
+    ]
+    _write_log(tmp_path / "sessions/parent.jsonl", records)
+    _write_log(tmp_path / "archived_sessions/copy.jsonl", records)
+    singapore = timezone(timedelta(hours=8))
+    models, history = read_token_usage(tmp_path, now=datetime(2026, 9, 5, 12, tzinfo=singapore))
+
+    assert [(m.id, m.tokens) for m in models] == [("gpt-example", 10)]
+    assert [(day.day.isoformat(), day.tokens) for day in history] == [
+        ("2026-08-29", 100),
+        ("2026-08-30", 30),
+        ("2026-08-31", 0),
+        ("2026-09-01", 0),
+        ("2026-09-02", 0),
+        ("2026-09-03", 0),
+        ("2026-09-04", 20),
+    ]
+
+
+def test_history_counts_all_models_including_cached_input_once(tmp_path):
+    for i in range(4):
+        _write_log(tmp_path / f"sessions/model-{i}.jsonl", [
+            _context("2026-09-04T01:00:00Z", f"gpt-example-{i}"),
+            _usage("2026-09-04T01:00:01Z", last={
+                "input_tokens": 100, "cached_input_tokens": 80, "output_tokens": 10,
+            }),
+            _usage("2026-09-05T01:00:01Z", last={"input_tokens": 50, "output_tokens": 5}),
+        ])
+
+    models, history = read_token_usage(tmp_path, now=datetime(2026, 9, 5, 12, tzinfo=timezone.utc), limit=1)
+
+    assert len(models) == 1
+    assert history[-1].tokens == 440
+    assert sum(day.tokens for day in history) == 440
+
+
+def test_history_without_logs_has_seven_zero_days(tmp_path):
+    models, history = read_token_usage(tmp_path, now=datetime(2026, 1, 3, 12, tzinfo=timezone.utc))
+
+    assert models == []
+    assert len(history) == 7
+    assert history[0].day.isoformat() == "2025-12-27"
+    assert history[-1].day.isoformat() == "2026-01-02"
+    assert all(day.tokens == 0 for day in history)

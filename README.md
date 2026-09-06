@@ -35,7 +35,9 @@ codex-usage-epd/
 ## Features
 
 - Plan quota: 5-hour + weekly windows (used / remaining %, reset time)
-- Today's top three models by local token usage, shown in millions with bars
+- Left: "Last 7 days" line chart of total tokens for the seven completed local
+  calendar days before today, with dates and compact K/M/B totals
+- Right: "Tokens used today", showing the top three models with bars
   proportional to the most-used model
 - Credits balance when present on the plan
 - Red alert bars when remaining % drops below `render.warn_threshold`
@@ -53,18 +55,20 @@ Consequences for the layout:
 
 - **Light grey text is invisible.** A "grey" like `(180,180,180)` has luma `180`
   and maps to white, so it disappears against the white background. Secondary
-  text (`resets …`, `TODAY TOKENS (M)`, the footer) therefore uses
+  text (`resets …`, `Tokens used today`, the footer) therefore uses
   `GRAY = (100, 100, 100)` — dark enough to map to black and stay legible.
 - **Percentages are drawn outside the progress bars.** Global-window bars are
   sized to leave room for the `%` label to their right. This keeps the label
   readable even when the bar fill approaches 100% (a black fill would otherwise
   cover black text).
 
-The `TODAY TOKENS (M)` section reads local rollout logs from
-`$CODEX_HOME/sessions` (or `~/.codex/sessions`) and `archived_sessions`. It
-groups input + output tokens by the active model in the local timezone, sorts
-them by token count, and displays the top three. Cached input is already part of
-the input count and is not added a second time.
+The token sections read local rollout logs from
+`$CODEX_HOME/sessions` (or `~/.codex/sessions`) and `archived_sessions`. They
+group input + output tokens by date and active model in the local timezone.
+The chart sums all models for each day and shows zero for dates without local
+usage. Today's section sorts models by token count and displays the top three.
+Both sections share one log scan. Cached input is already part of the input
+count and is not added a second time.
 
 ## Requirements
 

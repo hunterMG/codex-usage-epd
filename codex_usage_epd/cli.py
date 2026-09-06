@@ -31,7 +31,7 @@ from .api import (
 from .ble import BlePushError, probe, push_display, test_screen
 from .config import expand_user, load_config
 from .render import image_to_planes, planes_to_rgb, render_dashboard, resolve_font_path
-from .token_usage import read_today_model_usage
+from .token_usage import read_token_usage
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -66,7 +66,7 @@ def load_balance(args: argparse.Namespace, cfg: dict) -> tuple:
         dump_path.write_text(json.dumps(raw, indent=2))
         print(f"[debug] raw wham/usage JSON -> {dump_path}")
     balance = parse_usage(raw)
-    balance.models = read_today_model_usage(Path(auth_file).parent)
+    balance.models, balance.daily_usage = read_token_usage(Path(auth_file).parent, now=balance.fetched_at)
     return balance, raw
 
 

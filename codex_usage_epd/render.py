@@ -27,9 +27,6 @@ RED_MIN_R = 160
 
 BAR_H = 14
 BAR_X = 100
-MODEL_BAR_X = 12
-MODEL_BAR_W = 220
-MODEL_BAR_H = 10
 
 # colours (pure red pixels render red on the BWR panel)
 # GRAY must stay below BW_THRESHOLD in luma, otherwise it maps to white and
@@ -132,6 +129,42 @@ def _fmt_tokens(tokens: int) -> str:
     return f"{millions:.{decimals}f}M"
 
 
+def _chart_tokens(tokens: int) -> str:
+    for scale, suffix in ((1_000_000_000, "B"), (1_000_000, "M"), (1_000, "K")):
+        if tokens >= scale:
+            value = tokens / scale
+            return f"{value:.1f}{suffix}" if value < 100 else f"{value:.0f}{suffix}"
+    return str(max(0, tokens))
+
+
+def _draw_history(draw: ImageDraw.ImageDraw, balance: Balance, font_path: str, y: int, right: int, bottom: int) -> None:
+    font = _font(font_path, 9)
+    history = balance.daily_usage[-7:]
+    if not history:
+        draw.text((12, y + 24), "No local history", font=_font(font_path, 12), fill=GRAY)
+        return
+
+    left = 26
+    plot_right = right - 14
+    plot_top = y + 39
+    baseline = bottom - 16
+    peak = max(1, max(day.tokens for day in history))
+    points = []
+    for i, day in enumerate(history):
+        x = round(left + i * (plot_right - left) / max(1, len(history) - 1))
+        point_y = round(baseline - max(0, day.tokens) / peak * (baseline - plot_top))
+        points.append((x, point_y))
+        # Align totals and dates in columns so labels never collide with the line.
+        for label, label_y in ((_chart_tokens(day.tokens), y + 22), (day.day.strftime("%m/%d"), baseline + 6)):
+            draw.text((x - _text_w(draw, label, font) // 2, label_y), label, font=font, fill=BLACK)
+
+    draw.line((left, baseline, plot_right, baseline), fill=GRAY)
+    if len(points) > 1:
+        draw.line(points, fill=BLACK, width=2)
+    for x, point_y in points:
+        draw.ellipse((x - 2, point_y - 2, x + 2, point_y + 2), fill=BLACK)
+
+
 def render_dashboard(
     balance: Balance,
     font_path: str,
@@ -195,43 +228,32 @@ def render_dashboard(
     draw.line((12, y + 4, width - 12, y + 4), fill=BLACK, width=1)
     y += 14
 
-    # Today's local token usage, sorted by model (top three). The largest
-    # model is the reference width; the remaining bars are proportional to it.
+    # History on the left, today's top models on the right.
+    split = round(width * 0.535)
+    right_x = split + 10
+    right_edge = width - 12
+    column_w = right_edge - right_x
+    draw.text((12, y), "Last 7 days", font=f_small, fill=GRAY)
+    _draw_history(draw, balance, font_path, y, split - 6, height - 28)
+    draw.line((split, y, split, height - 28), fill=BLACK)
     models = balance.models[:3]
-    draw.text((12, y), "Tokens used today", font=f_small, fill=GRAY)
-    y += 24
+    draw.text((right_x, y), "Tokens used today", font=f_small, fill=GRAY)
+    y += 22
     max_tokens = max((m.tokens for m in models), default=0)
     for m in models:
         value = _fmt_tokens(m.tokens)
-        value_w = _text_w(draw, value, f_body)
-        label = _fit_text(draw, _short_model(m.id), f_body, MODEL_BAR_X + 82)
-        row_bottom = y + MODEL_BAR_H
+        value_w = _text_w(draw, value, f_small)
+        label = _fit_text(draw, _short_model(m.id), f_small, column_w - value_w - 8)
+        row_bottom = y + 20
         if row_bottom > height - 26:
             break
-        draw.text((12, y), label, font=f_body, fill=BLACK)
-        draw.text((width - 12 - value_w, y), value, font=f_body, fill=BLACK)
-        bar_x = MODEL_BAR_X + 86
-        bar_y = y + 3
-        if m.tokens >= max_tokens > 0:
-            draw.rectangle(
-                (bar_x, bar_y, bar_x + MODEL_BAR_W - 1, bar_y + MODEL_BAR_H - 1),
-                fill=BLACK,
-            )
-        else:
-            draw.rectangle(
-                (bar_x, bar_y, bar_x + MODEL_BAR_W - 1, bar_y + MODEL_BAR_H - 1),
-                outline=BLACK,
-                width=1,
-            )
-            filled = int((MODEL_BAR_W - 2) * max(0.0, min(1.0, m.tokens / max_tokens))) if max_tokens else 0
-            if filled:
-                draw.rectangle(
-                    (bar_x + 1, bar_y + 1, bar_x + filled, bar_y + MODEL_BAR_H - 2),
-                    fill=BLACK,
-                )
-        y += 20
+        draw.text((right_x, y), label, font=f_small, fill=BLACK)
+        draw.text((right_edge - value_w, y), value, font=f_small, fill=BLACK)
+        percent = 100 * m.tokens / max_tokens if max_tokens else 0
+        _draw_bar(draw, right_x, y + 15, column_w, 5, percent, -1)
+        y += 24
     if not models:
-        draw.text((12, y), "No local usage today", font=f_body, fill=GRAY)
+        draw.text((right_x, y), "No local usage today", font=f_small, fill=GRAY)
 
     # credits + footer
     credits_line = None

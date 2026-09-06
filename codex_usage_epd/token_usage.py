@@ -1,4 +1,4 @@
-"""Read today's per-model token usage from local Codex rollout logs.
+"""Read daily and per-model token usage from local Codex rollout logs.
 
 Codex records cumulative totals and a per-event ``last_token_usage`` in JSONL
 files below ``$CODEX_HOME/sessions``. This follows the same core accounting
@@ -12,11 +12,11 @@ import json
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .model import ModelTokenUsage
+from .model import DailyTokenUsage, ModelTokenUsage
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -294,7 +294,7 @@ def _model_from(*sources: Any) -> str | None:
 
 
 def _candidate_files(codex_home: Path, start: datetime) -> Iterable[Path]:
-    """Yield logs that could contain an event from the requested local day."""
+    """Yield logs that could contain an event from the requested date range."""
     roots = (codex_home / "sessions", codex_home / "archived_sessions")
     start_epoch = start.timestamp()
     for root in roots:
@@ -312,7 +312,7 @@ def _scan_file(
     path: Path,
     start: datetime,
     end: datetime,
-    totals: dict[str, int],
+    totals: dict[tuple[date, str], int],
     seen_events: set[tuple[Any, ...]],
 ) -> None:
     current_model: str | None = None
@@ -382,7 +382,8 @@ def _scan_file(
             if fingerprint in seen_events:
                 continue
             seen_events.add(fingerprint)
-            totals[model] += delta.input + delta.output
+            day = occurred_at.astimezone(start.tzinfo).date()
+            totals[day, model] += delta.input + delta.output
 
 
 def read_today_model_usage(
@@ -391,16 +392,45 @@ def read_today_model_usage(
     limit: int = 3,
 ) -> list[ModelTokenUsage]:
     """Return today's most-used Codex models, sorted by input + output tokens."""
+    models, _ = read_token_usage(codex_home, now=now, limit=limit, history_days=0)
+    return models
+
+
+def read_token_usage(
+    codex_home: Path,
+    now: datetime | None = None,
+    limit: int = 3,
+    history_days: int = 7,
+) -> tuple[list[ModelTokenUsage], list[DailyTokenUsage]]:
+    """Read today's top models and preceding complete local days in one scan.
+
+    History includes every model and fills days without events with zero.
+    Events before the range still establish cumulative counter baselines.
+    """
     local_now = now or datetime.now().astimezone()
     if local_now.tzinfo is None:
         local_now = local_now.astimezone()
-    start = datetime.combine(local_now.date(), time.min, tzinfo=local_now.tzinfo)
-    end = start + timedelta(days=1)
+    history_days = max(0, history_days)
+    today = datetime.combine(local_now.date(), time.min, tzinfo=local_now.tzinfo)
+    start = today - timedelta(days=history_days)
+    end = today + timedelta(days=1)
 
-    totals: dict[str, int] = defaultdict(int)
+    totals: dict[tuple[date, str], int] = defaultdict(int)
     seen_events: set[tuple[Any, ...]] = set()
     for path in _candidate_files(codex_home, start):
         _scan_file(path, start, end, totals, seen_events)
 
-    ranked = sorted(totals.items(), key=lambda item: (-item[1], item[0]))
-    return [ModelTokenUsage(id=model, tokens=tokens) for model, tokens in ranked[: max(0, limit)]]
+    ranked = sorted(
+        ((model, tokens) for (day, model), tokens in totals.items() if day == today.date()),
+        key=lambda item: (-item[1], item[0]),
+    )
+    daily: dict[date, int] = defaultdict(int)
+    for (day, _model), tokens in totals.items():
+        daily[day] += tokens
+    history = [
+        DailyTokenUsage(day=day, tokens=daily[day])
+        for offset in range(history_days)
+        for day in [(start + timedelta(days=offset)).date()]
+    ]
+    models = [ModelTokenUsage(id=model, tokens=tokens) for model, tokens in ranked[: max(0, limit)]]
+    return models, history

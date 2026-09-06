@@ -10,7 +10,7 @@ Replicates CodexBar's CodexOAuthUsageFetcher behaviour:
 from __future__ import annotations
 
 import json
-import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
@@ -18,7 +18,7 @@ try:
 except ImportError:  # pragma: no cover
     requests = None  # type: ignore[assignment]
 
-from .model import Balance, ModelTokenUsage, Window
+from .model import Balance, DailyTokenUsage, ModelTokenUsage, Window
 
 DEFAULT_CHATGPT_BASE = "https://chatgpt.com/backend-api/"
 USAGE_PATH = "/wham/usage"
@@ -235,7 +235,8 @@ def parse_usage(raw: dict) -> Balance:
 
 def sample_balance() -> Balance:
     """Synthetic snapshot used by --selftest (no network / no device)."""
-    now = int(time.time())
+    local_now = datetime.now().astimezone()
+    now = int(local_now.timestamp())
     return Balance(
         plan_type="plus",
         windows=[
@@ -249,4 +250,9 @@ def sample_balance() -> Balance:
         ],
         has_credits=False,
         source="sample",
+        daily_usage=[
+            DailyTokenUsage(local_now.date() - timedelta(days=7 - i), tokens)
+            for i, tokens in enumerate([8_200_000, 12_500_000, 0, 9_700_000, 18_300_000, 14_100_000, 22_600_000])
+        ],
+        fetched_at=local_now,
     )
