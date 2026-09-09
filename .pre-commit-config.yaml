@@ -3,11 +3,11 @@ repos:
     hooks:
       - id: ruff
         name: Ruff
-        entry: ruff check . --no-cache
+        entry: uv run ruff check . --no-cache
         language: system
         pass_filenames: false
       - id: pyright
         name: Pyright
-        entry: uv run --with pyright pyright
+        entry: uv run pyright
         language: system
         pass_filenames: false

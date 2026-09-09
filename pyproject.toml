@@ -38,3 +38,11 @@ path = "codex_usage_epd/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["codex_usage_epd"]
 force-include = { "config/codex_usage_epd.yaml.example" = "codex_usage_epd/codex_usage_epd.yaml.example" }
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
+    "ruff>=0.16.6",
+]

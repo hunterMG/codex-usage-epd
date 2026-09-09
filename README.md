@@ -94,8 +94,10 @@ agent.
 
 ## Setup
 
+Clone this repo and `cd` to it in terminal.
+
 ```sh
-uv sync                              # creates .venv, installs deps + the package (editable)
+uv sync --locked                     # creates .venv, installs deps + the package (editable)
 uv run codex-usage-epd --init        # generate config/codex_usage_epd.yaml from the template
 # edit config/codex_usage_epd.yaml (set ble.device etc.)
 uv run codex-usage-epd --selftest    # render preview.png, no net/BLE
@@ -191,6 +193,12 @@ Notable keys:
 
 ## Development
 
-- Repository: `git@github.com:hunterMG/codex-usage-epd.git` (private)
-- License: GNU AGPL v3 — see `LICENSE`
-- Dependencies are managed by uv (`uv sync`, `uv.lock` committed)
+```sh
+uv sync --locked
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
+## License
+
+GNU AGPL v3 — see [LICENSE](LICENSE).
