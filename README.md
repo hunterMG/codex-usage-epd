@@ -1,11 +1,13 @@
 # codex-usage-epd
 
-Push your OpenAI Codex usage quota to a 4.2" 400x300 three-colour e-paper display
+Push your OpenAI Codex usage statistics to a 4.2" 400x300 three-colour e-paper display
 powered by the [EPD-nRF5](https://github.com/tsl0922/EPD-nRF5) firmware.
 
 Reads the same data source CodexBar uses (OAuth `wham/usage`) and speaks the
 EPD-nRF5 BLE image-transfer protocol byte-for-byte (RLE + bitplanes from the
 web client).
+
+![Demo of the e-paper usage display](assets/demo.jpeg)
 
 ## Layout
 
