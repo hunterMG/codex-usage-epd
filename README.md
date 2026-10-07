@@ -1,5 +1,8 @@
 # codex-usage-epd
 
+[![PyPI Version](https://img.shields.io/pypi/v/codex-usage-epd?color=%2334D058)](https://pypi.org/project/codex-usage-epd)
+[![PyPI Python Version](https://img.shields.io/pypi/pyversions/codex-usage-epd?color=%2334D058)](https://pypi.org/project/codex-usage-epd)
+
 Push your OpenAI Codex usage statistics to a 4.2" 400x300 three-colour e-paper display
 powered by the [EPD-nRF5](https://github.com/tsl0922/EPD-nRF5) firmware.
 
