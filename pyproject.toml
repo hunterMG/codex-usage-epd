@@ -9,7 +9,7 @@ description = "Push OpenAI Codex usage quota to a 4.2\" 400x300 three-colour e-p
 readme = "README.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"
-authors = [{ name = "jon" }]
+authors = [{ name = "hunterMG" }]
 keywords = ["epd", "e-paper", "ble", "codex", "usage", "display"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -25,6 +25,11 @@ dependencies = [
   "requests>=2.31",
   "PyYAML>=6",
 ]
+
+[project.urls]
+Homepage = "https://github.com/hunterMG/codex-usage-epd"
+Repository = "https://github.com/hunterMG/codex-usage-epd"
+Issues = "https://github.com/hunterMG/codex-usage-epd/issues"
 
 [project.optional-dependencies]
 dev = ["pytest"]

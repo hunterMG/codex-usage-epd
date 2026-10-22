@@ -82,11 +82,12 @@ substring.
 
 ## Installing as a package
 
-> Not published to PyPI yet. Install from the locally built wheel:
+Install the latest release from PyPI:
 
 ```sh
-uv build                              # builds sdist + wheel into dist/
-uv pip install dist/*.whl             # or: uv pip install --python <venv> dist/*.whl
+uv tool install codex-usage-epd
+# or, inside an existing environment:
+uv add codex-usage-epd
 ```
 
 The config template lives at `config/codex_usage_epd.yaml.example`. Run
