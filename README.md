@@ -1,5 +1,6 @@
 # codex-usage-epd
 
+[![CI](https://github.com/hunterMG/codex-usage-epd/actions/workflows/ci.yml/badge.svg)](https://github.com/hunterMG/codex-usage-epd/actions/workflows/ci.yml)
 [![PyPI Version](https://img.shields.io/pypi/v/codex-usage-epd?color=%2334D058)](https://pypi.org/project/codex-usage-epd)
 [![PyPI Python Version](https://img.shields.io/pypi/pyversions/codex-usage-epd?color=%2334D058)](https://pypi.org/project/codex-usage-epd)
 
