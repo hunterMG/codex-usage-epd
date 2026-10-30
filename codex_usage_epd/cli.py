@@ -162,6 +162,7 @@ async def run_push(planes, cfg: dict) -> None:
         pacing_ms=float(ble.get("pacing_ms", 0.0)),
         hold_after_refresh=float(ble.get("hold_after_refresh", 15.0)),
         slot=ble.get("slot", 0),
+        stop_slideshow=bool(ble.get("stop_slideshow", True)),
     )
 
 

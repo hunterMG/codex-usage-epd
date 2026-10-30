@@ -148,6 +148,7 @@ The most useful settings are:
 | `ble.hold_after_refresh` | `20` | Seconds to stay connected while the panel refreshes |
 | `ble.patch_wakeup_pin` | `true` | Keeps the panel advertising after its sleep timeout |
 | `ble.slot` | `0` | Image slot for slot-based firmware; `auto` picks a free slot, `-1`/`none` disables `SET_SLOT` |
+| `ble.stop_slideshow` | `true` | On slot firmware, switch to picture mode after each push so an active slideshow stops |
 | `codex.auth_file` | `~/.codex/auth.json` | Location of the OAuth tokens |
 | `codex.timeout` | `15` | Usage request timeout in seconds |
 | `render.font` | auto | Path to a `.ttf` font; empty means auto-detect |

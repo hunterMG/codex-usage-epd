@@ -26,6 +26,7 @@ _DEFAULTS = {
         "pacing_ms": 0.0,
         "hold_after_refresh": 20.0,
         "slot": 0,
+        "stop_slideshow": True,
     },
     "codex": {
         "auth_file": "~/.codex/auth.json",

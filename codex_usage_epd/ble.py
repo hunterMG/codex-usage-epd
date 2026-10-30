@@ -15,6 +15,8 @@ Slot firmware (epdiy.cn web client) adds:
   - device announces "slots=<count> <usedMask> [selected]" (usedMask decimal)
     after connecting; sending SET_SLOT [0, slot] before INIT routes WRITE_IMG
     into that slot.
+  - SET_TIME 0x20 [timestamp:4] [tz_offset:1] [mode:1]; the web client sends
+    mode 0 (picture) to exit slideshow and display the selected slot.
 """
 
 from __future__ import annotations
@@ -32,9 +34,12 @@ CMD_INIT = 0x01
 CMD_CLEAR = 0x02
 CMD_REFRESH = 0x05
 CMD_SLEEP = 0x06
+CMD_SET_TIME = 0x20
 CMD_WRITE_IMG = 0x30
 CMD_SET_SLOT = 0x31
 CMD_SET_CONFIG = 0x90
+
+MODE_PICTURE = 0x00
 
 DEFAULT_DEVICE_NAME = "NRF_EPD"
 _MTU_RE = re.compile(rb"mtu=(\d+)")
@@ -163,6 +168,24 @@ def _resolve_slot(slot_cfg, notifier: _Notifier) -> int | None:
     return slot_idx
 
 
+def _set_time_command(timestamp: int, mode: int, timezone_offset_hours: int | None = None) -> bytes:
+    """Encode SET_TIME with a big-endian Unix timestamp, local offset, and mode."""
+    if timezone_offset_hours is None:
+        timezone_offset_hours = int(time.localtime().tm_gmtoff / 3600)
+    ts = timestamp & 0xFFFFFFFF
+    return bytes(
+        [
+            CMD_SET_TIME,
+            (ts >> 24) & 0xFF,
+            (ts >> 16) & 0xFF,
+            (ts >> 8) & 0xFF,
+            ts & 0xFF,
+            timezone_offset_hours & 0xFF,
+            mode & 0xFF,
+        ]
+    )
+
+
 async def probe(
     device: str,
     model_id: int,
@@ -237,6 +260,7 @@ async def push_display(
     pacing_ms: float = 0.0,
     hold_after_refresh: float = 15.0,
     slot: int | str | None = None,
+    stop_slideshow: bool = True,
 ) -> None:
     """Mirror the proven-good web client sequence (html/js/main.js sendimg).
 
@@ -248,7 +272,8 @@ async def push_display(
 
     On slot firmware (epdiy.cn) a ``SET_SLOT [0, slot]`` is sent before INIT,
     exactly like the web client, so WRITE_IMG lands in the chosen slot instead
-    of overwriting whatever slot the device currently has selected.
+    of overwriting whatever slot the device currently has selected. After the
+    refresh, ``SET_TIME`` selects picture mode, which stops an active slideshow.
     """
     from bleak import BleakClient
 
@@ -331,6 +356,12 @@ async def push_display(
                 if pacing_ms:
                     await asyncio.sleep(pacing_ms / 1000.0)
 
+        if use_slot is not None:
+            print(f"[ble] SET_SLOT display slot {use_slot}")
+            await client.write_gatt_char(
+                BLE_EPD_CHAR, bytes([CMD_SET_SLOT, 0x01, use_slot & 0xFF]), response=True
+            )
+
         # REFRESH without response: the firmware blocks in SSD16xx_WaitBusy
         # while the panel refreshes, so a write-with-response would just sit
         # waiting for an ATT ack the device only sends after the busy-wait
@@ -340,6 +371,15 @@ async def push_display(
         await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_REFRESH]), response=False)
         print(f"[ble] REFRESH sent (no-response), holding {hold_after_refresh}s for panel refresh...")
         await asyncio.sleep(hold_after_refresh)
+        if stop_slideshow and notifier.slots_count:
+            print("[ble] SET_TIME picture mode (stop slideshow)")
+            await client.write_gatt_char(
+                BLE_EPD_CHAR,
+                _set_time_command(int(time.time()), MODE_PICTURE),
+                response=True,
+            )
+            print(f"[ble] holding {hold_after_refresh}s for picture-mode redraw...")
+            await asyncio.sleep(hold_after_refresh)
         if sleep_after_push:
             await client.write_gatt_char(BLE_EPD_CHAR, bytes([CMD_SLEEP]), response=True)
             print("[ble] display sleeping")
